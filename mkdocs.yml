@@ -1,0 +1,39 @@
+site_name: EDITO Publishing Toolkit
+site_description: Documentation for the EDITO Publishing Toolkit API and publication workflows.
+repo_name: EDITO-Infra/edito-publishing-toolkit
+repo_url: https://github.com/EDITO-Infra/edito-publishing-toolkit
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+site_dir: site
+
+nav:
+  - Home: index.md
+  - Usage: usage.md
+  - Docker usage: docker-usage.md
+  - Authentication: auth.md
+  - API: api.md
+  - Features:
+      - Overview: features/index.md
+      - Get my catalogs: features/get-my-catalogs.md
+      - Publish STAC: features/publish-stac.md
+      - Remove STAC: features/remove-stac.md
+      - Publication jobs: features/publication-jobs.md
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - toc:
+      permalink: true

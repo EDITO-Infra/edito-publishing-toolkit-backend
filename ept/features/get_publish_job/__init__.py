@@ -1,0 +1,1 @@
+"""Get publication job feature."""

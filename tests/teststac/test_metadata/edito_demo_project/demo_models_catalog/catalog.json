@@ -1,0 +1,41 @@
+{
+  "type": "Catalog",
+  "id": "demo_edito_models",
+  "stac_version": "1.1.0",
+  "description": "Compact nested catalog with example ocean model output metadata for EDITO tests",
+  "links": [
+    {
+      "rel": "child",
+      "href": "./demo_model_outputs_collection/collection.json",
+      "type": "application/json",
+      "title": "Demo model outputs"
+    },
+    {
+      "rel": "self",
+      "href": "./catalog.json",
+      "type": "application/json",
+      "title": "Demo model catalog"
+    },
+    {
+      "rel": "root",
+      "href": "../catalog.json",
+      "type": "application/json",
+      "title": "EDITO Demo Project"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json",
+      "title": "EDITO Demo Project"
+    }
+  ],
+  "@context": "https://schema.org/",
+  "@type": "DataCatalog",
+  "name": "Demo Model Catalog",
+  "identifier": "demo_edito_models",
+  "title": "Demo Model Catalog",
+  "isPartOf": {
+    "@type": "DataCatalog",
+    "name": "EDITO Demo Project"
+  }
+}

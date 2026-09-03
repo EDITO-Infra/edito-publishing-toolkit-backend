@@ -1,0 +1,75 @@
+{
+  "type": "Feature",
+  "stac_version": "1.1.0",
+  "stac_extensions": [
+    "https://stac-extensions.github.io/projection/v2.0.0/schema.json"
+  ],
+  "id": "demo_point_observation",
+  "geometry": {
+    "type": "Point",
+    "coordinates": [
+      2.91,
+      51.23
+    ]
+  },
+  "bbox": [
+    2.91,
+    51.23,
+    2.91,
+    51.23
+  ],
+  "properties": {
+    "datetime": "2024-04-01T12:00:00Z",
+    "title": "Demo point observation",
+    "proj:code": "EPSG:4326",
+    "provider": [
+      {
+        "name": "EDITO test metadata",
+        "roles": [
+          "resourceProvider"
+        ]
+      }
+    ]
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "./demo_point_observation.json",
+      "type": "application/geo+json",
+      "title": "Demo point observation"
+    },
+    {
+      "rel": "collection",
+      "href": "../collection.json",
+      "type": "application/json",
+      "title": "Demo observations"
+    },
+    {
+      "rel": "root",
+      "href": "../../../catalog.json",
+      "type": "application/json",
+      "title": "EDITO Demo Project"
+    },
+    {
+      "rel": "parent",
+      "href": "../collection.json",
+      "type": "application/json",
+      "title": "Demo observations"
+    }
+  ],
+  "assets": {
+    "data": {
+      "href": "https://example.test/data/demo_point_observation.parquet",
+      "type": "application/vnd.apache.parquet",
+      "title": "Point observation parquet",
+      "roles": [
+        "data"
+      ]
+    }
+  },
+  "collection": "demo_edito_observations",
+  "@context": "https://schema.org/",
+  "@type": "Dataset",
+  "name": "demo_point_observation",
+  "identifier": "demo_point_observation"
+}

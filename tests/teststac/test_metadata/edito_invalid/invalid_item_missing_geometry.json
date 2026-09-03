@@ -1,0 +1,25 @@
+{
+  "type": "Feature",
+  "id": "invalid_demo_item_missing_geometry",
+  "stac_version": "1.1.0",
+  "collection": "demo_edito_observations",
+  "bbox": [
+    2.91,
+    51.23,
+    2.91,
+    51.23
+  ],
+  "properties": {
+    "datetime": "2024-04-01T12:00:00Z",
+    "title": "Invalid test metadata item missing geometry"
+  },
+  "assets": {
+    "data": {
+      "href": "https://example.test/data/invalid_demo_item.parquet",
+      "type": "application/vnd.apache.parquet",
+      "roles": [
+        "data"
+      ]
+    }
+  }
+}

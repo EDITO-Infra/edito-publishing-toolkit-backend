@@ -1,0 +1,77 @@
+{
+  "type": "Collection",
+  "id": "demo_edito_model_outputs",
+  "stac_version": "1.1.0",
+  "description": "Small test collection with ocean model forecast and reanalysis outputs",
+  "links": [
+    {
+      "rel": "item",
+      "href": "./demo_surface_temperature_forecast/demo_surface_temperature_forecast.json",
+      "type": "application/geo+json"
+    },
+    {
+      "rel": "item",
+      "href": "./demo_current_velocity_grid/demo_current_velocity_grid.json",
+      "type": "application/geo+json"
+    },
+    {
+      "rel": "self",
+      "href": "./collection.json",
+      "type": "application/json",
+      "title": "Demo model outputs"
+    },
+    {
+      "rel": "root",
+      "href": "../../catalog.json",
+      "type": "application/json",
+      "title": "EDITO Demo Project"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json",
+      "title": "Demo model catalog"
+    }
+  ],
+  "@context": "https://schema.org/",
+  "@type": "DataCatalog",
+  "name": "Demo model outputs",
+  "identifier": "demo_edito_model_outputs",
+  "title": "Demo model outputs",
+  "keywords": [
+    "demo",
+    "model",
+    "forecast",
+    "marine"
+  ],
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          -10.0,
+          45.0,
+          12.0,
+          62.0
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          "2024-07-01T00:00:00Z",
+          "2024-07-07T23:59:59Z"
+        ]
+      ]
+    }
+  },
+  "license": "CC-BY-4.0",
+  "providers": [
+    {
+      "name": "EDITO test model metadata",
+      "roles": [
+        "producer",
+        "processor"
+      ]
+    }
+  ]
+}

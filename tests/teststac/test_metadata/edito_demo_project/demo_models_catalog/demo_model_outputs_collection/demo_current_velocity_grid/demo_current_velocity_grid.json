@@ -1,0 +1,95 @@
+{
+  "type": "Feature",
+  "stac_version": "1.1.0",
+  "stac_extensions": [
+    "https://stac-extensions.github.io/projection/v2.0.0/schema.json"
+  ],
+  "id": "demo_current_velocity_grid",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          -6.0,
+          48.0
+        ],
+        [
+          8.0,
+          48.0
+        ],
+        [
+          8.0,
+          59.0
+        ],
+        [
+          -6.0,
+          59.0
+        ],
+        [
+          -6.0,
+          48.0
+        ]
+      ]
+    ]
+  },
+  "bbox": [
+    -6.0,
+    48.0,
+    8.0,
+    59.0
+  ],
+  "properties": {
+    "datetime": "2024-07-05T12:00:00Z",
+    "title": "Demo surface current velocity grid",
+    "proj:code": "EPSG:4326",
+    "provider": [
+      {
+        "name": "EDITO test model metadata",
+        "roles": [
+          "resourceProvider"
+        ]
+      }
+    ]
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "./demo_current_velocity_grid.json",
+      "type": "application/geo+json",
+      "title": "Demo surface current velocity grid"
+    },
+    {
+      "rel": "collection",
+      "href": "../collection.json",
+      "type": "application/json",
+      "title": "Demo model outputs"
+    },
+    {
+      "rel": "root",
+      "href": "../../../catalog.json",
+      "type": "application/json",
+      "title": "EDITO Demo Project"
+    },
+    {
+      "rel": "parent",
+      "href": "../collection.json",
+      "type": "application/json",
+      "title": "Demo model outputs"
+    }
+  ],
+  "assets": {
+    "data": {
+      "href": "https://example.test/model/demo_current_velocity_grid.nc",
+      "type": "application/x-netcdf",
+      "title": "Surface current velocity netcdf",
+      "roles": [
+        "data"
+      ]
+    }
+  },
+  "collection": "demo_edito_model_outputs",
+  "@context": "https://schema.org/",
+  "@type": "Dataset",
+  "name": "demo_current_velocity_grid",
+  "identifier": "demo_current_velocity_grid"
+}

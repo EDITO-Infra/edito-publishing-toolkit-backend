@@ -1,0 +1,105 @@
+{
+  "type": "Feature",
+  "stac_version": "1.1.0",
+  "stac_extensions": [
+    "https://stac-extensions.github.io/projection/v2.0.0/schema.json"
+  ],
+  "id": "demo_surface_temperature_forecast",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          -8.0,
+          46.0
+        ],
+        [
+          10.0,
+          46.0
+        ],
+        [
+          10.0,
+          61.0
+        ],
+        [
+          -8.0,
+          61.0
+        ],
+        [
+          -8.0,
+          46.0
+        ]
+      ]
+    ]
+  },
+  "bbox": [
+    -8.0,
+    46.0,
+    10.0,
+    61.0
+  ],
+  "properties": {
+    "datetime": "2024-07-01T00:00:00Z",
+    "start_datetime": "2024-07-01T00:00:00Z",
+    "end_datetime": "2024-07-03T00:00:00Z",
+    "title": "Demo sea surface temperature forecast",
+    "proj:code": "EPSG:4326",
+    "provider": [
+      {
+        "name": "EDITO test model metadata",
+        "roles": [
+          "resourceProvider"
+        ]
+      }
+    ]
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "./demo_surface_temperature_forecast.json",
+      "type": "application/geo+json",
+      "title": "Demo sea surface temperature forecast"
+    },
+    {
+      "rel": "collection",
+      "href": "../collection.json",
+      "type": "application/json",
+      "title": "Demo model outputs"
+    },
+    {
+      "rel": "root",
+      "href": "../../../catalog.json",
+      "type": "application/json",
+      "title": "EDITO Demo Project"
+    },
+    {
+      "rel": "parent",
+      "href": "../collection.json",
+      "type": "application/json",
+      "title": "Demo model outputs"
+    }
+  ],
+  "assets": {
+    "data": {
+      "href": "https://example.test/model/demo_surface_temperature_forecast.zarr",
+      "type": "application/vnd+zarr",
+      "title": "Sea surface temperature forecast zarr",
+      "roles": [
+        "data"
+      ]
+    },
+    "thumbnail": {
+      "href": "https://example.test/model/demo_surface_temperature_forecast.png",
+      "type": "image/png",
+      "title": "Forecast quicklook",
+      "roles": [
+        "thumbnail"
+      ]
+    }
+  },
+  "collection": "demo_edito_model_outputs",
+  "@context": "https://schema.org/",
+  "@type": "Dataset",
+  "name": "demo_surface_temperature_forecast",
+  "identifier": "demo_surface_temperature_forecast"
+}

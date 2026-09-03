@@ -1,0 +1,96 @@
+[project]
+name = "edito-publishing-toolkit"
+version = "1.0.0"
+description = "EDITO Publishing Toolkit for data and metadata transformation"
+authors = [
+    {name = "samuelfooks"},
+    {name = "Flanders Marine Institute"}
+]
+license = "CC-BY-4.0"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+  "click>=8.0",
+  "pytest>=8.0",
+  "fastapi>=0.115.0",
+  "uvicorn>=0.24.0",
+  "httpx>=0.28.1",
+  "pyjwt[crypto]>=2.7.0",
+  "pydantic-settings>=2.0",
+  "packaging>=24.0",
+  "xarray>=2026.4.0",
+  "zarr>=3.2.1",
+  "fsspec>=2026.4.0",
+  "s3fs>=2026.4.0",
+  "netcdf4>=1.7.4",
+  "h5netcdf>=1.8.1",
+  "pystac>=1.14.3",
+  "boto3>=1.43.0",
+  "botocore>=1.43.0",
+  "aiohttp>=3.14.0",
+  "requests>=2.34.2",
+  "wrapt>=2.2.2",
+  "cryptography>=49.0.0",
+  "numpy>=2.5.1",
+  "starlette>=1.3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "packaging>=24.0",
+  "httpx>=0.28.1",
+]
+docs = [
+  "mkdocs>=1.6,<2",
+  "mkdocs-material>=9.6,<10",
+]
+arco = [
+  "xarray>=2025.1",
+  "zarr>=3.0",
+  "fsspec>=2025.1",
+  "s3fs>=2025.1",
+  "netcdf4>=1.7",
+  "h5netcdf>=1.4",
+]
+metadata = [
+  "fsspec>=2025.1",
+  "s3fs>=2025.1",
+]
+storage = [
+  "fsspec>=2025.1",
+  "s3fs>=2025.1",
+]
+all = [
+  "pytest>=8.0",
+  "packaging>=24.0",
+  "httpx>=0.28.1",
+  "xarray>=2025.1",
+  "zarr>=3.0",
+  "fsspec>=2025.1",
+  "s3fs>=2025.1",
+  "netcdf4>=1.7",
+  "h5netcdf>=1.4",
+]
+
+[project.scripts]
+api = "ept.api.main:main"
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ept*"]
+
+[tool.setuptools.package-data]
+"*" = ["feature.toml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-m", "contract or unit"]
+markers = [
+  "unit: unit tests",
+  "contract: contract tests",
+  "integration: integration tests",
+]

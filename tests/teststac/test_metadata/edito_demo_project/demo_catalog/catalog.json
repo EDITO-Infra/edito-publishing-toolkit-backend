@@ -1,0 +1,41 @@
+{
+  "type": "Catalog",
+  "id": "demo_catalog",
+  "stac_version": "1.1.0",
+  "description": "Compact nested catalog for EDITO CLI and STAC ops test metadata checks",
+  "links": [
+    {
+      "rel": "child",
+      "href": "./demo_observations_collection/collection.json",
+      "type": "application/json",
+      "title": "Demo observations"
+    },
+    {
+      "rel": "self",
+      "href": "./catalog.json",
+      "type": "application/json",
+      "title": "Demo marine catalog"
+    },
+    {
+      "rel": "root",
+      "href": "../catalog.json",
+      "type": "application/json",
+      "title": "EDITO Demo Project"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json",
+      "title": "EDITO Demo Project"
+    }
+  ],
+  "@context": "https://schema.org/",
+  "@type": "DataCatalog",
+  "name": "Demo Marine Catalog",
+  "identifier": "demo_catalog",
+  "title": "Demo Marine Catalog",
+  "isPartOf": {
+    "@type": "DataCatalog",
+    "name": "EDITO Demo Project"
+  }
+}

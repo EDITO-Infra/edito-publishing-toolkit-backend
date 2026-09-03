@@ -1,0 +1,25 @@
+[feature]
+key = "publish.job.get"
+release = "1.0.0"
+title = "Get publication job"
+description = "Fetch a publication job summary or cursor-paginated job logs by identifier."
+depends_on = []
+
+[package]
+requires = ["fastapi", "httpx", "pydantic-settings"]
+
+[entrypoints]
+python = ["ept.features.get_publish_job.service:get_publish_job"]
+
+[api]
+router = "ept.features.get_publish_job.routes:router"
+
+[[api.routes]]
+method = "GET"
+path = "/v1/edito/publish/jobs/{job_id}"
+summary = "Get publication job"
+response_model = "ept.features.get_publish_job.models:GetPublishJobResponse"
+
+[tests]
+unit = "tests/features/get_publish_job/test_get_publish_job.py"
+integration = "tests/features/get_publish_job/test_get_publish_job.py"

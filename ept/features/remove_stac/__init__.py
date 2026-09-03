@@ -1,0 +1,2 @@
+"""Remove STAC resource feature."""
+

@@ -1,0 +1,47 @@
+{
+  "type": "Catalog",
+  "id": "edito_demo_project",
+  "stac_version": "1.1.0",
+  "description": "Sample project STAC root for EDITO tests",
+  "links": [
+    {
+      "rel": "child",
+      "href": "./demo_catalog/catalog.json",
+      "type": "application/json",
+      "title": "Demo marine catalog"
+    },
+    {
+      "rel": "child",
+      "href": "./demo_models_catalog/catalog.json",
+      "type": "application/json",
+      "title": "Demo model catalog"
+    },
+    {
+      "rel": "self",
+      "href": "./catalog.json",
+      "type": "application/json",
+      "title": "EDITO Demo Project"
+    },
+    {
+      "rel": "root",
+      "href": "./catalog.json",
+      "type": "application/json",
+      "title": "EDITO Demo Project"
+    }
+  ],
+  "@context": "https://schema.org/",
+  "@type": "DataCatalog",
+  "name": "EDITO Demo Project",
+  "identifier": "edito_demo_project",
+  "title": "EDITO Demo Project",
+  "hasPart": [
+    {
+      "@type": "DataCatalog",
+      "name": "Demo marine catalog"
+    },
+    {
+      "@type": "DataCatalog",
+      "name": "Demo model catalog"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+[feature]
+key = "publish.stac"
+release = "1.0.0"
+title = "Publish STAC metadata"
+description = "Queue publication of STAC metadata under an EDITO project catalog."
+depends_on = []
+
+[package]
+requires = ["fastapi", "httpx", "pydantic-settings"]
+
+[entrypoints]
+python = ["ept.features.publish_stac.service:publish_stac"]
+
+[api]
+router = "ept.features.publish_stac.routes:router"
+
+[[api.routes]]
+method = "POST"
+path = "/v1/edito/stac/publish"
+summary = "Queue STAC publication"
+request_model = "ept.features.publish_stac.models:PublishStacRequest"
+response_model = "ept.features.publish_stac.models:PublishStacResponse"
+
+[tests]
+unit = "tests/features/publish_stac/test_publish_stac.py"
+integration = "tests/features/publish_stac/test_publish_stac.py"

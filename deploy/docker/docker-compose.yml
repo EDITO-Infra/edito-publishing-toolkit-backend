@@ -1,0 +1,27 @@
+services:
+  ept-api:
+    container_name: ept-api
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+      network: host
+    ports:
+        - "8000:8000"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8000
+      API_LOG: ${API_LOG:-/tmp/ept/logs/api.log}
+      PUBLISHING_API_URL: ${PUBLISHING_API_URL:-https://edito-publisher.vliz.be/}
+      EDITO_STAC_API_URL: ${EDITO_STAC_API_URL:-https://api.dive.edito.eu/data}
+      EDITO_AUTH_URL: ${EDITO_AUTH_URL:-https://auth.dive.edito.eu/auth/realms/datalab/protocol/openid-connect/token}
+    user: "${EPT_API_UID:-1000}:${EPT_API_GID:-1000}"
+    working_dir: /app
+    command: uvicorn ept.api.main:app --host 0.0.0.0 --port 8000
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    stdin_open: true
+    tty: true

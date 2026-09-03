@@ -1,0 +1,26 @@
+[feature]
+key = "remove.stac"
+release = "1.0.0"
+title = "Remove STAC metadata"
+description = "Queue removal of a STAC resource from an EDITO project catalog."
+depends_on = []
+
+[package]
+requires = ["fastapi", "httpx", "pydantic-settings"]
+
+[entrypoints]
+python = ["ept.features.remove_stac.service:remove_stac"]
+
+[api]
+router = "ept.features.remove_stac.routes:router"
+
+[[api.routes]]
+method = "POST"
+path = "/v1/edito/stac/remove"
+summary = "Queue STAC removal"
+request_model = "ept.features.remove_stac.models:RemoveStacRequest"
+response_model = "ept.features.remove_stac.models:RemoveStacResponse"
+
+[tests]
+unit = "tests/features/remove_stac/test_remove_stac.py"
+integration = "tests/features/remove_stac/test_remove_stac.py"
