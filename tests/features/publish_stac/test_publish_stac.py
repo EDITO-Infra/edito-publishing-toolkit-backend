@@ -1,13 +1,99 @@
 """Tests for STAC publication routes."""
 
+from __future__ import annotations
+
 import asyncio
+import logging
+from collections.abc import Iterator
+from typing import Any
 
 import httpx
 import pytest
 
 from ept.api.dependencies import get_http_client
 from ept.api.main import app
-from tests.conftest import integration, require_live_env, unit
+from ept.features.publish_stac.client import (
+    publish_stac_job,
+    resolve_publishing_api_url,
+)
+from ept.infrastructure.services.errors import UpstreamServiceRequestError
+from tests.conftest import feature_is_active, integration, require_live_env, unit
+
+# These tests exercise mounted routes, so they skip if the feature is ever
+# declared for a later release than EPT_ACTIVE_RELEASE (it ships in 1.0.0).
+pytestmark = pytest.mark.skipif(
+    not feature_is_active("publish.stac"),
+    reason="feature is not mounted in the active release",
+)
+
+
+class RecordingPublishingHttpClient:
+    """Record outbound requests and return configured JSON responses.
+
+    Tests use ``body`` for a single response or ``responses`` for an ordered
+    sequence. No network request is made.
+    """
+
+    def __init__(
+        self,
+        responses: list[tuple[int, dict[str, Any], dict[str, str]]] | None = None,
+        *,
+        status_code: int = 202,
+        body: dict[str, Any] | None = None,
+    ) -> None:
+        self.status_code = status_code
+        self.body = body or {"job_id": "job-1", "status": "queued"}
+        self.responses = list(responses or [])
+        self.calls: list[dict[str, Any]] = []
+        self.last_call: dict[str, Any] = {}
+
+    async def request(
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str],
+        json: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> httpx.Response:
+        """Record one request and return the next configured response."""
+        call: dict[str, Any] = {
+            "method": method,
+            "url": url,
+            "json": json,
+            "headers": headers,
+        }
+        if params is not None:
+            call["params"] = params
+        self.last_call = call
+        self.calls.append(call)
+
+        if self.responses:
+            status_code, body, response_headers = self.responses.pop(0)
+        else:
+            status_code, body, response_headers = self.status_code, self.body, {}
+        return httpx.Response(
+            status_code,
+            json=body,
+            headers=response_headers,
+            request=httpx.Request(method, url),
+        )
+
+
+@pytest.fixture
+def publishing_http_client(monkeypatch: pytest.MonkeyPatch) -> Iterator[RecordingPublishingHttpClient]:
+    """Inject a stable publishing URL and recording outbound client."""
+    fake = RecordingPublishingHttpClient()
+    monkeypatch.setenv("PUBLISHING_API_URL", "https://publishing.test")
+
+    async def override_http_client() -> RecordingPublishingHttpClient:
+        return fake
+
+    app.dependency_overrides[get_http_client] = override_http_client
+    try:
+        yield fake
+    finally:
+        app.dependency_overrides.pop(get_http_client, None)
 
 
 @unit
@@ -42,7 +128,6 @@ def test_publish_stac_translates_request_to_upstream_publish_call(publishing_htt
         "remote_stac_url": "https://example.test/catalog.json",
         "parent_path": "/catalogs/projects/demo",
         "dry_run": False,
-        "overwrite": True,
     }
 
 
@@ -333,6 +418,79 @@ def test_publish_stac_maps_upstream_unavailability():
         "reason": "publication_backend_unavailable",
         "instance": "/v1/edito/stac/publish",
     }
+
+
+@unit
+def test_publish_stac_error_redacts_tokens(caplog):
+    """Upstream token-like rejection data is sanitized before it reaches logs."""
+    caplog.set_level(logging.INFO)
+
+    class RejectingUpstream:
+        """Fake upstream service that rejects every request."""
+
+        async def request(self, method: str, url: str, **_kwargs) -> httpx.Response:
+            return httpx.Response(
+                401,
+                json={"access_token": "leaked-access", "refresh_token": "leaked-refresh"},
+                request=httpx.Request(method, url),
+            )
+
+    with pytest.raises(UpstreamServiceRequestError) as caught:
+        asyncio.run(
+            publish_stac_job(
+                RejectingUpstream(),
+                {
+                    "remote_stac_url": "https://example.test/catalog.json",
+                    "parent_path": "/catalogs/projects/demo",
+                    "dry_run": False,
+                },
+                access_token="access-secret",
+                refresh_token="refresh-secret",
+            )
+        )
+
+    assert caught.value.status_code == 401
+    assert caught.value.upstream_response == {
+        "access_token": "***REDACTED***",
+        "refresh_token": "***REDACTED***",
+    }
+    assert "leaked-access" not in caplog.text
+    assert "leaked-refresh" not in caplog.text
+
+
+@unit
+def test_publish_stac_maps_invalid_queued_response_to_502(publishing_http_client):
+    """A success body without the queued contract is a synthesized 502."""
+    publishing_http_client.body = {"job_id": "job-1", "status": "accepted"}
+
+    response = asyncio.run(
+        _post(
+            "/v1/edito/stac/publish",
+            {
+                "remote_stac_url": "https://example.test/catalog.json",
+                "catalog_id": "projects/demo",
+            },
+        )
+    )
+
+    assert response.status_code == 502
+    assert response.headers["content-type"] == "application/problem+json"
+    assert response.json()["reason"] == "publication_request_rejected"
+    assert response.json()["upstream_response"] == "Publication backend returned an invalid response."
+
+
+@unit
+def test_publishing_api_url_is_resolved_from_environment(monkeypatch):
+    """The feature resolver prefers PUBLISHING_API_URL and trims quotes/slashes."""
+    monkeypatch.setenv("PUBLISHING_SERVICE_API_URL", "https://secondary.test")
+    monkeypatch.setenv("PUBLISHING_API_URL", '"https://publishing.test/"')
+    assert resolve_publishing_api_url() == "https://publishing.test"
+
+    monkeypatch.delenv("PUBLISHING_API_URL")
+    assert resolve_publishing_api_url() == "https://secondary.test"
+
+    monkeypatch.delenv("PUBLISHING_SERVICE_API_URL")
+    assert resolve_publishing_api_url() == "https://edito-publisher.vliz.be"
 
 
 async def _post(path: str, payload: dict) -> httpx.Response:

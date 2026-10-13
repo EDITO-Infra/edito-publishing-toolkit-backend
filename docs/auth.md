@@ -17,7 +17,7 @@ If you are unsure which rights your account has, contact [EDITO Support](mailto:
 
 Individual feature guides document any additional requirements for their operations.
 
-## Get an access token
+## Log in once
 
 Set the URL of the EPT instance:
 
@@ -25,17 +25,22 @@ Set the URL of the EPT instance:
 export EPT_API_URL="http://localhost:8000"
 ```
 
-`POST /v1/auth` is public. Exchange an EDITO username and password:
+In PowerShell, use `$env:EPT_API_URL = "http://localhost:8000"` instead.
+
+`POST /v1/auth` is public. Exchange an EDITO username and password using
+URL-encoded form data:
 
 ```bash
-curl --fail-with-body -X POST "${EPT_API_URL}/v1/auth" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "grant_type": "password",
-    "username": "YOUR_EDITO_USERNAME",
-    "password": "YOUR_EDITO_PASSWORD"
-  }'
+curl --fail-with-body "${EPT_API_URL}/v1/auth" \
+  --data-urlencode "username=${EDITO_USERNAME}" \
+  --data-urlencode "password=${EDITO_PASSWORD}"
 ```
+
+`--data-urlencode` safely encodes the original credential values; do not encode them manually
+
+## Response
+
+The response contains the bearer token, the refresh token, and a nested `s3_credentials` object.
 
 Use the tokens from the successful response for protected requests:
 
@@ -45,6 +50,18 @@ export REFRESH_TOKEN="<refresh_token>"
 ```
 
 The access token authorizes protected routes. Publication and removal requests also send the refresh token in the `X-EDITO-Refresh-Token` header.
+
+The `s3_credentials` object is a temporary 24-hour session for EDITO's S3 object storage. Only the password grant returns `s3_credentials`; a refresh grant returns `null` there and rotates only the tokens, so keep using the S3 session from the original login. It contains the connection parameters needed to reach your EDITO storage:
+
+| Field | Meaning |
+| --- | --- |
+| `endpoint_url` | The S3 endpoint, by default `https://minio.dive.edito.eu` |
+| `access_key_id` | Access key for the temporary session |
+| `secret_access_key` | Secret key for the temporary session |
+| `session_token` | Session token for the temporary session |
+| `expiration` | When the session expires (metadata only) |
+
+Pass these fields as connection parameters in requests that touch S3, such as [Upload to S3](features/upload-s3.md); see [S3 storage](s3.md) for details. They are request-scoped — they never become ambient credentials of the EPT process.
 
 The current implementation forwards the credentials to the configured EDITO Keycloak token endpoint and does not persist them.
 
@@ -62,8 +79,7 @@ base_url = os.getenv("EPT_API_URL", "http://localhost:8000")
 with httpx.Client(base_url=base_url, timeout=30.0) as client:
     response = client.post(
         "/v1/auth",
-        json={
-            "grant_type": "password",
+        data={
             "username": os.environ["EDITO_USERNAME"],
             "password": os.environ["EDITO_PASSWORD"],
         },
@@ -72,6 +88,7 @@ with httpx.Client(base_url=base_url, timeout=30.0) as client:
     tokens = response.json()
     access_token = tokens["access_token"]
     refresh_token = tokens["refresh_token"]
+    s3_credentials = tokens["s3_credentials"]  # null on refresh-token grants
 
 headers = {"Authorization": f"Bearer {access_token}"}
 ```
@@ -83,15 +100,11 @@ Do not print or log complete tokens.
 Exchange a refresh token without resending the username and password:
 
 ```bash
-curl --fail-with-body -X POST "${EPT_API_URL}/v1/auth" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"grant_type\": \"refresh_token\",
-    \"refresh_token\": \"${REFRESH_TOKEN}\"
-  }"
+curl --fail-with-body "${EPT_API_URL}/v1/auth" \
+  --data-urlencode "refresh_token=${REFRESH_TOKEN}"
 ```
 
-Replace both local token values with the tokens returned by a successful refresh.
+Replace both local token values with the tokens returned by a successful refresh. The refresh response returns `s3_credentials: null`; keep the S3 credentials from the original login.
 
 ## Call protected routes
 

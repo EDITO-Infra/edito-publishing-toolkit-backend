@@ -9,16 +9,20 @@ site_dir: site
 
 nav:
   - Home: index.md
+  - Install: install.md
   - Usage: usage.md
   - Docker usage: docker-usage.md
   - Authentication: auth.md
+  - S3 storage: s3.md
   - API: api.md
   - Features:
       - Overview: features/index.md
+      - Validate STAC: features/validate-stac.md
       - Get my catalogs: features/get-my-catalogs.md
       - Publish STAC: features/publish-stac.md
       - Remove STAC: features/remove-stac.md
       - Publication jobs: features/publication-jobs.md
+      - Upload to S3: features/upload-s3.md
 
 theme:
   name: material

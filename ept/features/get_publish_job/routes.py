@@ -6,10 +6,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Query
 
-from ept.api.dependencies import EditoBearerAuthDep
+from ept.api.dependencies import EditoBearerAuthDep, HttpClientDep
 from ept.api.errors import problem_responses
-from ept.infrastructure.services.publishing.dependencies import PublishingClientDep
-from ept.infrastructure.services.publishing.errors import (
+
+from ept.features.get_publish_job.transport import (
     PUBLISHING_REJECTED_EXAMPLE,
     PUBLISHING_UNAVAILABLE_EXAMPLE,
 )
@@ -61,7 +61,7 @@ GET_PUBLISH_JOB_SUCCESS_EXAMPLES = {
 )
 async def get_publish_job_route(
     edito_bearer_auth: EditoBearerAuthDep,
-    publishing_client: PublishingClientDep,
+    http_client: HttpClientDep,
     job_id: Annotated[
         str,
         Path(
@@ -78,5 +78,5 @@ async def get_publish_job_route(
         limit=query.limit,
         cursor=query.cursor,
         access_token=edito_bearer_auth.access_token,
-        publishing_client=publishing_client,
+        http_client=http_client,
     )

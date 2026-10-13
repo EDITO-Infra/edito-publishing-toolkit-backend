@@ -296,8 +296,8 @@ def auth_problem_responses() -> dict[int | str, dict[str, Any]]:
         ),
         422: _validation_response_doc(
             {
-                "invalid_grant": {
-                    "summary": "Invalid token grant",
+                "invalid_credentials": {
+                    "summary": "Invalid authentication fields",
                     "value": {
                         "type": f"{PROBLEM_BASE_URL}/invalid-request",
                         "title": "Invalid request",
@@ -305,7 +305,9 @@ def auth_problem_responses() -> dict[int | str, dict[str, Any]]:
                         "detail": "The request body did not match the API schema.",
                         "errors": [
                             {
-                                "detail": 'grant_type is required and must be "password" or "refresh_token".',
+                                "detail": (
+                                    "Provide both username and password, or provide a refresh token."
+                                ),
                                 "pointer": "/",
                             }
                         ],
@@ -417,6 +419,63 @@ def register_exception_handlers(app: FastAPI) -> None:
             upstream_response=exc.upstream_response,
         )
 
+    @app.exception_handler(FileExistsError)
+    async def target_exists(request: Request, exc: FileExistsError) -> JSONResponse:
+        """Map expected upload conflicts to 409 instead of a 500 traceback."""
+        logger.info("Upload target already exists method=%s path=%s detail=%s", request.method, request.url.path, exc)
+        return problem_response(
+            status_code=409,
+            type_slug="target-already-exists",
+            title="Conflict",
+            detail=str(exc),
+            request=request,
+            reason="target_exists",
+        )
+
+    @app.exception_handler(FileNotFoundError)
+    async def source_not_found(request: Request, exc: FileNotFoundError) -> JSONResponse:
+        """Map missing local sources to 404 instead of a 500 traceback."""
+        logger.info("Upload source not found method=%s path=%s detail=%s", request.method, request.url.path, exc)
+        return problem_response(
+            status_code=404,
+            type_slug="source-not-found",
+            title="Not Found",
+            detail=str(exc),
+            request=request,
+            reason="source_not_found",
+        )
+
+    try:
+        from botocore.exceptions import ClientError as BotoClientError
+    except ImportError:
+        return
+
+    @app.exception_handler(BotoClientError)
+    async def s3_client_error(request: Request, exc: Any) -> JSONResponse:
+        """Map S3 client failures to 502 instead of a 500 traceback."""
+        response = getattr(exc, "response", None) or {}
+        code = str((response.get("Error") or {}).get("Code") or "unknown")
+        operation = str(getattr(exc, "operation_name", "S3 request"))
+        logger.warning(
+            "S3 request failed method=%s path=%s operation=%s code=%s",
+            request.method,
+            request.url.path,
+            operation,
+            code,
+        )
+        return problem_response(
+            status_code=502,
+            type_slug="s3-request-failed",
+            title="Bad Gateway",
+            detail=(
+                f"S3 operation {operation} failed with code {code}. This is usually a "
+                "transient network or proxy error between EPT and the object store; "
+                "retrying the upload often resolves it."
+            ),
+            request=request,
+            reason="s3_request_failed",
+        )
+
 
 def _problem_response_doc(description: str, examples: dict[str, Any]) -> dict[str, Any]:
     """Build OpenAPI metadata for a Problem Details response."""
@@ -458,8 +517,7 @@ def _public_validation_message(error_type: str, fallback: str) -> str:
         return "Field is not supported."
     if error_type.startswith("string_too_short"):
         return "Value must not be empty."
-    if error_type in {"union_tag_not_found", "union_tag_invalid"}:
-        return 'grant_type is required and must be "password" or "refresh_token".'
+
     if error_type.startswith("value_error"):
         return fallback.removeprefix("Value error, ")
     return fallback

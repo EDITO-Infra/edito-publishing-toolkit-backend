@@ -20,6 +20,8 @@ def test_registry_discovers_registered_features():
         "publish.job.get",
         "publish.stac",
         "remove.stac",
+        "storage.s3_upload",
+        "validate.stac",
     }
 
 
@@ -90,10 +92,21 @@ unit = "tests/features/demo/test_demo.py"
 
 @contract
 def test_registered_feature_routes_are_visible_in_openapi():
-    """Feature.toml route declarations should match the generated API schema."""
-    paths = app.openapi()["paths"]
+    """Feature.toml routes and the OpenAPI schema must agree, per release.
 
-    for feature in FeatureRegistry.discover().features:
+    Routes of active-release features must appear in OpenAPI with the declared
+    summary, security, and body contract. Routes of release-gated features
+    (declared for a later release than ``EPT_ACTIVE_RELEASE``) must be absent
+    from both the mounted app and the schema.
+    """
+    paths = app.openapi()["paths"]
+    registry = FeatureRegistry.discover()
+
+    for feature in registry.features:
+        if not registry.is_active(feature):
+            for route in feature.api_routes:
+                assert route.path not in paths
+            continue
         for route in feature.api_routes:
             operation = paths[route.path][route.method.lower()]
             assert operation["summary"] == route.summary
@@ -171,3 +184,4 @@ def _imports_publishing_service(path) -> bool:
         or module.startswith("ept.infrastructure.services.publishing.")
         for module in _imported_modules(path)
     )
+

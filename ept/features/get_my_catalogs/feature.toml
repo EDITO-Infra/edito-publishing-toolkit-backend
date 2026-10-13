@@ -1,5 +1,7 @@
 [feature]
 key = "catalogs.mine.get"
+# Ships in release 1.0.0. Routes are mounted when the manifest release is at or
+# below EPT_ACTIVE_RELEASE (default 1.0.0); see ept.core.registry.
 release = "1.0.0"
 title = "Get my catalogs"
 description = "Return the catalog IDs under projects/ from the EDITO STAC API available to the authenticated user."
@@ -21,5 +23,5 @@ summary = "Get my catalogs"
 response_model = "ept.features.get_my_catalogs.models:GetMyCatalogsResponse"
 
 [tests]
-unit = "tests/features/get_my_catalogs/test_get_my_catalogs.py"
+unit = "tests/features/get_my_catalogs/test_edito_stac_api.py"
 integration = "tests/features/get_my_catalogs/test_get_my_catalogs.py"

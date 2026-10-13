@@ -27,6 +27,29 @@ logger = logging.getLogger(__name__)
 _log_listener: QueueListener | None = None
 
 
+class ExtrasFormatter(logging.Formatter):
+    """Formatter that appends ``extra={...}`` fields to the rendered message.
+
+    stdlib's Formatter only renders ``%(message)s`` — structured fields passed
+    via ``extra=`` were silently dropped from both console and file output.
+    This appends them as ``key=value`` pairs so call sites don't have to
+    duplicate detail into the message string.
+    """
+
+    _STD_ATTRS = frozenset(vars(logging.LogRecord("", 0, "", 0, "", (), None)))
+
+    def format(self, record: logging.LogRecord) -> str:
+        rendered = super().format(record)
+        extras = {
+            k: v
+            for k, v in record.__dict__.items()
+            if k not in self._STD_ATTRS and k != "message" and k != "asctime"
+        }
+        if extras:
+            rendered += " " + " ".join(f"{k}={v!r}" for k, v in sorted(extras.items()))
+        return rendered
+
+
 def configure_logging() -> QueueListener:
     """Start non-blocking console and rotating file logging for the API process."""
     log_level = getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO)
@@ -44,9 +67,7 @@ def configure_logging() -> QueueListener:
         encoding="utf-8",
     )
     file_handler.setLevel(log_level)
-    file_handler.setFormatter(
-        logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
-    )
+    file_handler.setFormatter(ExtrasFormatter("%(asctime)s %(levelname)s [%(name)s] %(message)s"))
 
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
@@ -55,9 +76,7 @@ def configure_logging() -> QueueListener:
 
     console_handler = logging.StreamHandler()
     console_handler.setLevel(log_level)
-    console_handler.setFormatter(
-        logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
-    )
+    console_handler.setFormatter(ExtrasFormatter("%(asctime)s %(levelname)s [%(name)s] %(message)s"))
 
     listener = QueueListener(
         log_queue,
@@ -95,26 +114,6 @@ def create_app() -> FastAPI:
         docs_url=None,
         lifespan=lifespan,
         openapi_tags=[
-            {
-                "name": "Service",
-                "description": "Application metadata and documentation endpoints.",
-            },
-            {
-                "name": "Authentication",
-                "description": "EDITO authentication and token refresh endpoints.",
-            },
-            {
-                "name": "STAC Publication and Removal",
-                "description": "Queue STAC publication and removal jobs.",
-            },
-            {
-                "name": "Publication Jobs",
-                "description": "Read publication job state and logs.",
-            },
-            {
-                "name": "STAC Catalogs",
-                "description": "Discover EDITO catalogs available to the authenticated user.",
-            },
         ],
     )
 
@@ -167,18 +166,20 @@ def _document_bearer_jwt(schema: dict[str, Any]) -> None:
 
 
 def _document_auth_request_example(schema: dict[str, Any]) -> None:
-    """Provide the default password-grant body shown by API documentation clients."""
-    auth_json = (
+    """Provide the default password-grant form shown by API documentation clients."""
+    auth_form = (
         schema.get("paths", {})
         .get("/v1/auth", {})
         .get("post", {})
         .get("requestBody", {})
         .get("content", {})
-        .get("application/json")
+        .get("application/x-www-form-urlencoded")
     )
-    if isinstance(auth_json, dict):
-        auth_json["example"] = {
-            "grant_type": "password",
+    if isinstance(auth_form, dict):
+        form_schema = auth_form.get("schema")
+        if isinstance(form_schema, dict) and "anyOf" in form_schema:
+            form_schema["oneOf"] = form_schema.pop("anyOf")
+        auth_form["example"] = {
             "username": "YOUR_EDITO_USERNAME",
             "password": "YOUR_EDITO_PASSWORD",
         }

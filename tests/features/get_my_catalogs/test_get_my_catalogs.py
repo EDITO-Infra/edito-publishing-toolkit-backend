@@ -11,11 +11,17 @@ import pytest
 
 from ept.api.dependencies import get_http_client, require_edito_bearer_auth
 from ept.api.main import app
-from ept.features.get_my_catalogs.adapters import from_edito_stac_catalogs
 from ept.features.get_my_catalogs.models import GetMyCatalogsResponse
+from ept.features.get_my_catalogs.service import EditoStacUserCatalogs, from_edito_stac_catalogs
 from ept.infrastructure.services.edito_auth import EditoBearerAuth
-from ept.infrastructure.services.edito_stac_api import EditoStacUserCatalogs
-from tests.conftest import integration, unit
+from tests.conftest import feature_is_active, integration, unit
+
+# These tests exercise mounted routes, so they skip if the feature is ever
+# declared for a later release than EPT_ACTIVE_RELEASE (it ships in 1.0.0).
+pytestmark = pytest.mark.skipif(
+    not feature_is_active("catalogs.mine.get"),
+    reason="feature is not mounted in the active release",
+)
 
 
 CATALOG_PAYLOAD = [

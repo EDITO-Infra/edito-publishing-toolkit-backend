@@ -6,7 +6,7 @@ See the [feature overview](docs/features/index.md) for the currently implemented
 
 ## Quick start
 
-EPT requires Python 3.13 or newer and uses [`uv`](https://docs.astral.sh/uv/) for dependency management.
+EPT uses [`uv`](https://docs.astral.sh/uv/) for dependency management; `uv` installs the Python version required by `pyproject.toml` automatically. See the [install guide](docs/install.md) for details.
 
 ```bash
 uv sync
@@ -25,6 +25,7 @@ If you are unsure which access rights you have, contact [EDITO Support](mailto:s
 
 ## Documentation
 
+- [Install](docs/install.md) — prerequisites and installing EPT
 - [Usage](docs/usage.md) — running and using the API, plus hosted deployment status
 - [Docker usage](docs/docker-usage.md) — building and running EPT with Docker
 - [API](docs/api.md) — endpoints, versioning, asynchronous jobs, and error conventions

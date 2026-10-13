@@ -7,15 +7,96 @@ It is read-only and needs no explicit mutation opt-in.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Iterator
+from typing import Any
 
 import httpx
 import pytest
 
+from ept.api.dependencies import get_http_client
 from ept.api.main import app
 from ept.features.get_publish_job.models import DEMO_DETAIL_LOGS, DEMO_JOB_SUMMARY
-from tests.conftest import integration, require_live_env, unit
+from ept.features.get_publish_job.transport import parse_publishing_next_cursor
+from ept.infrastructure.services.errors import UpstreamServiceRequestError
+from tests.conftest import feature_is_active, integration, require_live_env, unit
+
+# These tests exercise mounted routes, so they skip if the feature is ever
+# declared for a later release than EPT_ACTIVE_RELEASE (it ships in 1.0.0).
+pytestmark = pytest.mark.skipif(
+    not feature_is_active("publish.job.get"),
+    reason="feature is not mounted in the active release",
+)
 
 JOB_ID = "8d7d5a93-ff52-4a8e-9eb6-0d76d874b670"
+
+
+class RecordingPublishingHttpClient:
+    """Record outbound requests and return configured JSON responses.
+
+    Tests use ``body`` for a single response or ``responses`` for an ordered
+    sequence. No network request is made.
+    """
+
+    def __init__(
+        self,
+        responses: list[tuple[int, dict[str, Any], dict[str, str]]] | None = None,
+        *,
+        status_code: int = 200,
+        body: dict[str, Any] | None = None,
+    ) -> None:
+        self.status_code = status_code
+        self.body = body or {}
+        self.responses = list(responses or [])
+        self.calls: list[dict[str, Any]] = []
+        self.last_call: dict[str, Any] = {}
+
+    async def request(
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str],
+        json: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> httpx.Response:
+        """Record one request and return the next configured response."""
+        call: dict[str, Any] = {
+            "method": method,
+            "url": url,
+            "json": json,
+            "headers": headers,
+        }
+        if params is not None:
+            call["params"] = params
+        self.last_call = call
+        self.calls.append(call)
+
+        if self.responses:
+            status_code, body, response_headers = self.responses.pop(0)
+        else:
+            status_code, body, response_headers = self.status_code, self.body, {}
+        return httpx.Response(
+            status_code,
+            json=body,
+            headers=response_headers,
+            request=httpx.Request(method, url),
+        )
+
+
+@pytest.fixture
+def publishing_http_client(monkeypatch: pytest.MonkeyPatch) -> Iterator[RecordingPublishingHttpClient]:
+    """Inject a stable publishing URL and recording outbound client."""
+    fake = RecordingPublishingHttpClient()
+    monkeypatch.setenv("PUBLISHING_API_URL", "https://publishing.test")
+
+    async def override_http_client() -> RecordingPublishingHttpClient:
+        return fake
+
+    app.dependency_overrides[get_http_client] = override_http_client
+    try:
+        yield fake
+    finally:
+        app.dependency_overrides.pop(get_http_client, None)
 
 
 def _summary(job_id: str = JOB_ID) -> dict:
@@ -73,6 +154,26 @@ def _page(
             "message": message,
         },
     }
+
+
+@unit
+def test_cursor_parsing_accepts_valid_continuation_links():
+    """The documented ``after_id`` query parameter becomes the next cursor."""
+    assert parse_publishing_next_cursor(f"https://publishing.test/jobs/{JOB_ID}?view=detail&after_id=42") == 42
+    assert parse_publishing_next_cursor(f"/jobs/{JOB_ID}?after_id=0") == 0
+
+
+@unit
+def test_cursor_parsing_rejects_missing_or_invalid_cursors():
+    """Missing, non-integer, duplicated, or negative cursors fail closed."""
+    with pytest.raises(UpstreamServiceRequestError, match="HTTP 502"):
+        parse_publishing_next_cursor(f"/jobs/{JOB_ID}?view=detail")
+    with pytest.raises(UpstreamServiceRequestError, match="HTTP 502"):
+        parse_publishing_next_cursor(f"/jobs/{JOB_ID}?after_id=abc")
+    with pytest.raises(UpstreamServiceRequestError, match="HTTP 502"):
+        parse_publishing_next_cursor(f"/jobs/{JOB_ID}?after_id=1&after_id=2")
+    with pytest.raises(UpstreamServiceRequestError, match="HTTP 502"):
+        parse_publishing_next_cursor(f"/jobs/{JOB_ID}?after_id=-1")
 
 
 @unit

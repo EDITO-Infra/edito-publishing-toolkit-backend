@@ -79,8 +79,8 @@ EDITO_STAC_API=...
 ```
 
 `PUBLISHING_API_URL` selects the publishing service used by live requests and
-its `/openapi.json` contract check. `EDITO_AUTH_URL` may be set when the default
-EDITO authentication endpoint is not appropriate.
+its `/openapi.json` contract check. `EDITO_AUTH_ISSUER_URL` may be set when the default
+EDITO Keycloak realm is not appropriate.
 
 ## FastAPI feature tests
 

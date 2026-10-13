@@ -1,4 +1,4 @@
-"""Tests for the typed EDITO STAC API gateway."""
+"""Tests for the EDITO STAC API client and the get-user-catalogs use case."""
 
 from __future__ import annotations
 
@@ -8,12 +8,11 @@ from typing import Any
 import httpx
 import pytest
 
-from ept.infrastructure.services.edito_stac_api import (
+from ept.features.get_my_catalogs.service import EditoStacUserCatalogs, get_user_catalogs
+from ept.infrastructure.services.editostacapi import (
     DEFAULT_EDITO_STAC_API_URL,
-    EditoStacApiClient,
     EditoStacApiRequestError,
     EditoStacApiUnavailableError,
-    EditoStacUserCatalogs,
     resolve_edito_stac_api_url,
     resolve_edito_stac_openapi_url,
 )
@@ -106,13 +105,13 @@ def test_edito_stac_url_resolution(monkeypatch: pytest.MonkeyPatch):
 
 
 @unit
-def test_get_user_catalogs_sends_auth_and_preserves_response():
-    """The gateway encodes usernames and retains the complete upstream payload."""
+def test_get_user_catalogs_sends_auth_and_preserves_response(monkeypatch: pytest.MonkeyPatch):
+    """The use case encodes usernames and retains the complete upstream payload."""
+    monkeypatch.setenv("EDITO_STAC_API_URL", "https://stac.test/data/")
     fake = RecordingHttpClient()
-    client = EditoStacApiClient(fake, edito_stac_api_url="https://stac.test/data/")
 
     response = asyncio.run(
-        client.get_user_catalogs("alice/example", access_token="access-secret")
+        get_user_catalogs(username="alice/example", access_token="access-secret", http_client=fake)
     )
 
     assert isinstance(response, EditoStacUserCatalogs)
@@ -130,27 +129,29 @@ def test_get_user_catalogs_sends_auth_and_preserves_response():
 
 
 @unit
-def test_get_user_catalogs_accepts_an_empty_array():
+def test_get_user_catalogs_accepts_an_empty_array(monkeypatch: pytest.MonkeyPatch):
     """A user with no available catalogs receives a valid empty response."""
+    monkeypatch.setenv("EDITO_STAC_API_URL", "https://stac.test/data")
     fake = RecordingHttpClient(payload=[])
-    client = EditoStacApiClient(fake, edito_stac_api_url="https://stac.test/data")
 
-    response = asyncio.run(client.get_user_catalogs("alice", access_token="token"))
+    response = asyncio.run(
+        get_user_catalogs(username="alice", access_token="token", http_client=fake)
+    )
 
     assert response.root == []
 
 
 @unit
-def test_get_user_catalogs_wraps_upstream_error_and_redacts_tokens():
+def test_get_user_catalogs_wraps_upstream_error_and_redacts_tokens(monkeypatch: pytest.MonkeyPatch):
     """An upstream error keeps its status and sanitized response payload."""
+    monkeypatch.setenv("EDITO_STAC_API_URL", "https://stac.test/data")
     fake = RecordingHttpClient(
         status_code=404,
         payload={"ErrorMessage": "Not Found", "access_token": "leaked"},
     )
-    client = EditoStacApiClient(fake, edito_stac_api_url="https://stac.test/data")
 
     with pytest.raises(EditoStacApiRequestError) as raised:
-        asyncio.run(client.get_user_catalogs("alice", access_token="token"))
+        asyncio.run(get_user_catalogs(username="alice", access_token="token", http_client=fake))
 
     assert raised.value.status_code == 404
     assert raised.value.type_slug == "edito-stac-api-error-response"
@@ -166,16 +167,16 @@ def test_get_user_catalogs_wraps_upstream_error_and_redacts_tokens():
 
 
 @unit
-def test_get_user_catalogs_preserves_other_upstream_error_statuses():
+def test_get_user_catalogs_preserves_other_upstream_error_statuses(monkeypatch: pytest.MonkeyPatch):
     """The generic EDITO STAC envelope does not reinterpret upstream statuses."""
+    monkeypatch.setenv("EDITO_STAC_API_URL", "https://stac.test/data")
     fake = RecordingHttpClient(
         status_code=503,
         payload={"ErrorCode": 503, "ErrorMessage": "Service Unavailable"},
     )
-    client = EditoStacApiClient(fake, edito_stac_api_url="https://stac.test/data")
 
     with pytest.raises(EditoStacApiRequestError) as raised:
-        asyncio.run(client.get_user_catalogs("alice", access_token="token"))
+        asyncio.run(get_user_catalogs(username="alice", access_token="token", http_client=fake))
 
     assert raised.value.status_code == 503
     assert raised.value.type_slug == "edito-stac-api-error-response"
@@ -191,27 +192,29 @@ def test_get_user_catalogs_preserves_other_upstream_error_statuses():
     "payload",
     [{"catalogs": []}, [{}], RawText("not-json")],
 )
-def test_get_user_catalogs_rejects_invalid_success_payload(payload: Any):
+def test_get_user_catalogs_rejects_invalid_success_payload(
+    payload: Any, monkeypatch: pytest.MonkeyPatch
+):
     """A successful response must still be the documented array shape."""
+    monkeypatch.setenv("EDITO_STAC_API_URL", "https://stac.test/data")
     fake = RecordingHttpClient(payload=payload)
-    client = EditoStacApiClient(fake, edito_stac_api_url="https://stac.test/data")
 
     with pytest.raises(EditoStacApiRequestError) as raised:
-        asyncio.run(client.get_user_catalogs("alice", access_token="token"))
+        asyncio.run(get_user_catalogs(username="alice", access_token="token", http_client=fake))
 
     assert raised.value.status_code == 502
     assert raised.value.upstream_response == "EDITO STAC API returned an invalid response."
 
 
 @unit
-def test_get_user_catalogs_maps_connection_failure():
+def test_get_user_catalogs_maps_connection_failure(monkeypatch: pytest.MonkeyPatch):
     """Transport failures become the shared upstream-unavailable error shape."""
+    monkeypatch.setenv("EDITO_STAC_API_URL", "https://stac.test/data")
     request = httpx.Request("GET", "https://stac.test/data/users/alice/catalogs")
     fake = RecordingHttpClient(error=httpx.ConnectError("no route", request=request))
-    client = EditoStacApiClient(fake, edito_stac_api_url="https://stac.test/data")
 
     with pytest.raises(EditoStacApiUnavailableError):
-        asyncio.run(client.get_user_catalogs("alice", access_token="token"))
+        asyncio.run(get_user_catalogs(username="alice", access_token="token", http_client=fake))
 
 
 @integration
@@ -232,9 +235,10 @@ def test_live_edito_stac_openapi_and_user_catalog_contract(
 
     async def fetch_catalogs() -> EditoStacUserCatalogs:
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as http_client:
-            return await EditoStacApiClient(http_client).get_user_catalogs(
-                live_edito_credentials.username,
+            return await get_user_catalogs(
+                username=live_edito_credentials.username,
                 access_token=live_edito_token_pair.access_token,
+                http_client=http_client,
             )
 
     catalogs = asyncio.run(fetch_catalogs())

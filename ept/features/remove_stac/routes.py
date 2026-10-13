@@ -2,21 +2,31 @@
 
 from fastapi import APIRouter
 
+from ept.api.dependencies import HttpClientDep
 from ept.api.errors import problem_responses
-from ept.infrastructure.services.publishing.dependencies import (
-    REFRESH_TOKEN_OPENAPI_PARAMETER,
-    PublishingAuthDep,
-    PublishingClientDep,
-)
-from ept.infrastructure.services.publishing.errors import (
-    PUBLISHING_REJECTED_EXAMPLE,
-    PUBLISHING_UNAVAILABLE_EXAMPLE,
-)
 
+from .dependencies import REFRESH_TOKEN_OPENAPI_PARAMETER, PublishingAuthDep
 from .models import RemoveStacRequest, RemoveStacResponse
 from .service import remove_stac
 
 router = APIRouter(prefix="/v1/edito/stac", tags=["STAC Publication and Removal"])
+
+PUBLISHING_UNAVAILABLE_EXAMPLE = {
+    "type": "https://api.edito-publishing-toolkit.org/problems/publication-backend-unavailable",
+    "title": "Publication backend unavailable",
+    "status": 502,
+    "detail": "EPT could not complete the publication request because a required service is unavailable.",
+    "reason": "publication_backend_unavailable",
+}
+
+PUBLISHING_REJECTED_EXAMPLE = {
+    "type": "https://api.edito-publishing-toolkit.org/problems/publication-request-rejected",
+    "title": "Publication request rejected",
+    "status": 400,
+    "detail": "The publication request could not be accepted.",
+    "reason": "publication_request_rejected",
+    "upstream_response": {"detail": "Request rejected by a required service."},
+}
 
 
 @router.post(
@@ -41,11 +51,11 @@ router = APIRouter(prefix="/v1/edito/stac", tags=["STAC Publication and Removal"
 async def remove_stac_route(
     request: RemoveStacRequest,
     publishing_auth: PublishingAuthDep,
-    publishing_client: PublishingClientDep,
+    http_client: HttpClientDep,
 ) -> RemoveStacResponse:
     """Authenticate, delegate the feature flow, and return its public response."""
     return await remove_stac(
         request,
         publishing_auth=publishing_auth,
-        publishing_client=publishing_client,
+        http_client=http_client,
     )

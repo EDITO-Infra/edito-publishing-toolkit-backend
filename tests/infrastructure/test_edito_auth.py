@@ -17,14 +17,10 @@ import time
 import httpx
 import jwt
 import pytest
-from pydantic import TypeAdapter, ValidationError
 
 from ept.infrastructure.services.edito_auth import (
-    DEFAULT_EDITO_AUTH_URL,
+    DEFAULT_ISSUER,
     EditoBearerAuthError,
-    EditoPasswordTokenRequest,
-    EditoRefreshTokenRequest,
-    EditoTokenRequest,
     exchange_refresh_token,
     exchange_username_password,
     validate_bearer_token,
@@ -35,9 +31,7 @@ from tests.conftest import integration, require_live_env, unit
 @unit
 def test_default_auth_endpoint_uses_dive():
     """Unconfigured auth exchanges and validation must target EDITO DIVE."""
-    assert DEFAULT_EDITO_AUTH_URL == (
-        "https://auth.dive.edito.eu/auth/realms/datalab/protocol/openid-connect/token"
-    )
+    assert DEFAULT_ISSUER == "https://auth.dive.edito.eu/auth/realms/datalab"
 
 
 @unit
@@ -54,7 +48,7 @@ def test_username_password_exchange_sends_password_grant(monkeypatch):
             request=httpx.Request("POST", url),
         )
 
-    monkeypatch.setenv("EDITO_AUTH_URL", "https://auth.test/token")
+    monkeypatch.setenv("EDITO_AUTH_ISSUER_URL", "https://auth.test/auth/realms/test")
     monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
 
     token = asyncio.run(exchange_username_password("alice", "dashboard-secret"))
@@ -63,7 +57,7 @@ def test_username_password_exchange_sends_password_grant(monkeypatch):
     assert token.refresh_token == "refresh-secret"
     assert calls == [
         {
-            "url": "https://auth.test/token",
+            "url": "https://auth.test/auth/realms/test/protocol/openid-connect/token",
             "data": {
                 "grant_type": "password",
                 "client_id": "edito",
@@ -93,7 +87,7 @@ def test_explicit_credentials_are_exchanged_for_full_token_response(monkeypatch)
             request=httpx.Request("POST", url),
         )
 
-    monkeypatch.setenv("EDITO_AUTH_URL", "https://auth.test/token")
+    monkeypatch.setenv("EDITO_AUTH_ISSUER_URL", "https://auth.test/auth/realms/test")
     monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
 
     token = asyncio.run(exchange_username_password("alice", "dashboard-secret"))
@@ -118,7 +112,7 @@ def test_token_exchange_logs_safe_diagnostics(caplog, monkeypatch):
 
     caplog.set_level(logging.INFO, logger="ept.infrastructure.services.edito_auth")
     monkeypatch.delenv("EPT_LOG_TOKEN_VALUES", raising=False)
-    monkeypatch.setenv("EDITO_AUTH_URL", "https://auth.test/token")
+    monkeypatch.setenv("EDITO_AUTH_ISSUER_URL", "https://auth.test/auth/realms/test")
     monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
 
     asyncio.run(exchange_username_password("alice", "dashboard-secret"))
@@ -144,7 +138,7 @@ def test_refresh_token_exchange_sends_refresh_grant(monkeypatch):
             request=httpx.Request("POST", url),
         )
 
-    monkeypatch.setenv("EDITO_AUTH_URL", "https://auth.test/token")
+    monkeypatch.setenv("EDITO_AUTH_ISSUER_URL", "https://auth.test/auth/realms/test")
     monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
 
     token = asyncio.run(exchange_refresh_token("old-refresh"))
@@ -153,7 +147,7 @@ def test_refresh_token_exchange_sends_refresh_grant(monkeypatch):
     assert token.refresh_token == "new-refresh"
     assert calls == [
         {
-            "url": "https://auth.test/token",
+            "url": "https://auth.test/auth/realms/test/protocol/openid-connect/token",
             "data": {
                 "grant_type": "refresh_token",
                 "client_id": "edito",
@@ -164,59 +158,6 @@ def test_refresh_token_exchange_sends_refresh_grant(monkeypatch):
         }
     ]
 
-
-@unit
-@pytest.mark.parametrize(
-    "payload",
-    [
-        {},
-        {"grant_type": "bogus"},
-        {"username": "alice", "password": "dashboard-secret"},
-        {"grant_type": "password", "username": "alice"},
-        {"grant_type": "password", "password": "dashboard-secret"},
-        {"grant_type": "refresh_token"},
-        {
-            "grant_type": "password",
-            "username": "alice",
-            "password": "dashboard-secret",
-            "refresh_token": "old-refresh",
-        },
-    ],
-)
-def test_token_request_accepts_exactly_one_grant_shape(payload):
-    """Token requests need a valid grant_type plus that grant's complete, exact fields."""
-    with pytest.raises(ValidationError):
-        TypeAdapter(EditoTokenRequest).validate_python(payload)
-
-
-@unit
-def test_token_request_schema_documents_grant_alternatives():
-    """The token request schema should document the supported grant alternatives."""
-    schema = TypeAdapter(EditoTokenRequest).json_schema()
-
-    assert schema["oneOf"] == [
-        {"$ref": "#/$defs/EditoPasswordTokenRequest"},
-        {"$ref": "#/$defs/EditoRefreshTokenRequest"},
-    ]
-    assert schema["discriminator"] == {
-        "propertyName": "grant_type",
-        "mapping": {
-            "password": "#/$defs/EditoPasswordTokenRequest",
-            "refresh_token": "#/$defs/EditoRefreshTokenRequest",
-        },
-    }
-    assert schema["$defs"]["EditoPasswordTokenRequest"]["required"] == [
-        "grant_type",
-        "username",
-        "password",
-    ]
-    assert schema["$defs"]["EditoRefreshTokenRequest"]["required"] == ["grant_type", "refresh_token"]
-    assert TypeAdapter(EditoTokenRequest).validate_python(
-        {"grant_type": "password", "username": "alice", "password": "secret"}
-    ) == EditoPasswordTokenRequest(grant_type="password", username="alice", password="secret")
-    assert TypeAdapter(EditoTokenRequest).validate_python(
-        {"grant_type": "refresh_token", "refresh_token": "old-refresh"}
-    ) == EditoRefreshTokenRequest(grant_type="refresh_token", refresh_token="old-refresh")
 
 
 @unit
@@ -254,10 +195,7 @@ def test_bearer_token_is_validated_against_keycloak_claims(monkeypatch):
             "iat": int(time.time()),
         }
 
-    monkeypatch.setenv(
-        "EDITO_AUTH_URL",
-        "https://auth.test/auth/realms/datalab/protocol/openid-connect/token",
-    )
+    monkeypatch.setenv("EDITO_AUTH_ISSUER_URL", "https://auth.test/auth/realms/datalab")
     monkeypatch.setattr(jwt, "PyJWKClient", FakeJwksClient)
     monkeypatch.setattr(jwt, "decode", fake_decode)
 
@@ -269,8 +207,8 @@ def test_bearer_token_is_validated_against_keycloak_claims(monkeypatch):
 
 
 @unit
-def test_bearer_validation_derives_issuer_from_configured_token_endpoint(monkeypatch):
-    """Validation derives the issuer from the configured Keycloak token URL."""
+def test_bearer_validation_derives_issuer_from_configured_issuer(monkeypatch):
+    """Validation derives endpoints from the configured Keycloak realm URL."""
     class FakeSigningKey:
         """Minimal signing key object returned by the fake JWKS client."""
 
@@ -302,10 +240,9 @@ def test_bearer_validation_derives_issuer_from_configured_token_endpoint(monkeyp
         }
 
     monkeypatch.setenv(
-        "EDITO_AUTH_URL",
-        "https://auth.configured.test/auth/realms/datalab/protocol/openid-connect/token",
+        "EDITO_AUTH_ISSUER_URL",
+        "https://auth.configured.test/auth/realms/datalab/",
     )
-    monkeypatch.delenv("EDITO_AUTH_ISSUER_URL", raising=False)
     monkeypatch.setattr(jwt, "PyJWKClient", FakeJwksClient)
     monkeypatch.setattr(jwt, "decode", fake_decode)
 
@@ -316,8 +253,8 @@ def test_bearer_validation_derives_issuer_from_configured_token_endpoint(monkeyp
 
 
 @unit
-def test_bearer_validation_can_use_explicit_issuer_override(monkeypatch):
-    """Operators can set EDITO_AUTH_ISSUER_URL when token and endpoint hosts differ."""
+def test_bearer_validation_prefers_explicit_issuer_over_legacy_token_url(monkeypatch):
+    """EDITO_AUTH_ISSUER_URL wins when a legacy token-endpoint URL is also set."""
     class FakeSigningKey:
         """Minimal signing key object returned by the fake JWKS client."""
 
@@ -338,7 +275,7 @@ def test_bearer_validation_can_use_explicit_issuer_override(monkeypatch):
         "EDITO_AUTH_URL",
         "https://token-endpoint.test/auth/realms/datalab/protocol/openid-connect/token",
     )
-    monkeypatch.setenv("EDITO_AUTH_ISSUER_URL", "https://issuer.test/auth/realms/datalab/")
+    monkeypatch.setenv("EDITO_AUTH_ISSUER_URL", "https://issuer.test/auth/realms/datalab")
     monkeypatch.setattr(jwt, "PyJWKClient", FakeJwksClient)
     monkeypatch.setattr(
         jwt,
@@ -374,8 +311,8 @@ def test_bearer_token_rejects_unexpected_client(monkeypatch):
             return FakeSigningKey()
 
     monkeypatch.setenv(
-        "EDITO_AUTH_URL",
-        "https://auth.test/auth/realms/datalab/protocol/openid-connect/token",
+        "EDITO_AUTH_ISSUER_URL",
+        "https://auth.test/auth/realms/datalab",
     )
     monkeypatch.setattr(jwt, "PyJWKClient", FakeJwksClient)
     monkeypatch.setattr(
@@ -402,8 +339,8 @@ def test_bearer_validation_reports_auth_unavailable_when_jwks_unreachable(monkey
             raise jwt.PyJWKClientConnectionError("could not reach jwks endpoint")
 
     monkeypatch.setenv(
-        "EDITO_AUTH_URL",
-        "https://auth.unreachable.test/auth/realms/datalab/protocol/openid-connect/token",
+        "EDITO_AUTH_ISSUER_URL",
+        "https://auth.unreachable.test/auth/realms/datalab",
     )
     monkeypatch.setattr(jwt, "PyJWKClient", UnreachableJwksClient)
 
@@ -449,7 +386,7 @@ def test_live_edito_access_token_is_accepted_by_stac_api(
 ):
     """Require the issued token and username claim to work with EDITO STAC."""
     stac_api = require_live_env("EDITO_STAC_API")
-    auth_url = os.getenv("EDITO_AUTH_URL", DEFAULT_EDITO_AUTH_URL)
+    auth_url = os.getenv("EDITO_AUTH_ISSUER_URL", DEFAULT_ISSUER)
 
     _assert_token_is_accepted_by_stac_api(
         live_edito_token_pair.access_token,

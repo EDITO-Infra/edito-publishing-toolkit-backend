@@ -1,6 +1,6 @@
 # EPT API
 
-The EPT API is a FastAPI application assembled from feature slices under `ept/features/`. Each registered feature declares its route and public models in a colocated `feature.toml` manifest.
+EPT exposes a single HTTP API for preparing and publishing metadata and data products into EDITO. The service is a FastAPI application assembled from independent feature slices under `ept/features/`; each feature declares its routes and models in a colocated `feature.toml` manifest.
 
 See [Using EPT](usage.md) to start the service.
 
@@ -9,12 +9,14 @@ See [Using EPT](usage.md) to start the service.
 With the default local configuration, the service is available at `http://localhost:8000`.
 
 - `GET /v1` returns the API index.
-- `GET /docs` serves Swagger UI.
+- `GET /docs` serves Swagger UI with the full request and response models.
 - `GET /openapi.json` returns the generated OpenAPI schema.
 
-Swagger UI and the OpenAPI schema provide the detailed request and response models for the released EPT v1 API. Clients should rely on documented contracts rather than undocumented implementation details.
+Swagger UI and the OpenAPI schema are the authoritative contract for the released API. Clients should rely on documented contracts rather than undocumented implementation details.
 
-## Current routes
+## Service routes
+
+These routes belong to the API shell itself and are always present.
 
 | Method | Path | Purpose | Authentication |
 | --- | --- | --- | --- |
@@ -23,35 +25,21 @@ Swagger UI and the OpenAPI schema provide the detailed request and response mode
 | `GET` | `/docs` | Serve Swagger UI | Public |
 | `GET` | `/openapi.json` | Return the OpenAPI schema | Public |
 | `GET` | `/healthz` | Return process health status | Public |
-| `POST` | `/v1/auth` | Exchange EDITO credentials or a refresh token for tokens | Public |
-| `GET` | `/v1/edito/stac/mycatalogs` | List catalog IDs you have access to | Access token |
-| `POST` | `/v1/edito/stac/publish` | Queue STAC publication | Access token and refresh token |
-| `POST` | `/v1/edito/stac/remove` | Queue STAC removal | Access token and refresh token |
-| `GET` | `/v1/edito/publish/jobs/{job_id}` | Read a publication job summary or logs | Access token |
+| `POST` | `/v1/auth` | Exchange EDITO credentials or a refresh token for tokens, plus temporary S3 credentials | Public |
 
 See [Authentication](auth.md) for token exchange and header requirements.
+
+## Feature routes
+
+Everything beyond the service routes above is provided by a feature. Each feature guide documents its own endpoints, authentication, and usage — for example, [Validate STAC](features/validate-stac.md) exposes `POST /v1/stac/validate` to check a remote STAC catalog, collection, or item before publishing.
+
+Browse all available features in the [feature index](features/index.md).
 
 ## Versioning
 
 EPT v1.0.0 exposes its supported public contract under `/v1`. The unversioned `/` route exists only to redirect users to the API index.
 
 Backward-compatible additions may be made within `/v1`. Breaking changes require a new major API namespace.
-
-## Asynchronous publication flow
-
-STAC publication and removal are asynchronous:
-
-1. Submit a publish or remove request.
-2. EPT returns HTTP `202 Accepted` with a queued job ID.
-3. Pass the job ID to `GET /v1/edito/publish/jobs/{job_id}`.
-4. Request summary, detail, or raw-log views until the job reaches a terminal state.
-
-Detailed examples are available in:
-
-- [Get my catalogs](features/get-my-catalogs.md)
-- [Publish STAC](features/publish-stac.md)
-- [Remove STAC](features/remove-stac.md)
-- [Publication jobs](features/publication-jobs.md)
 
 ## Errors
 

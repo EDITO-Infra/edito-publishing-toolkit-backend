@@ -1,12 +1,24 @@
-"""EDITO Keycloak token exchange and bearer-token validation."""
+"""EDITO Keycloak token exchange and bearer-token validation.
+
+Everything talks to one Keycloak realm (`EDITO_AUTH_ISSUER_URL`). The flows
+differ only in client id and scope:
+
+- API tokens: password or refresh grant for the ``edito`` client.
+- S3 session: password grant for the ``onyxia-minio`` client, then that
+  identity token is swapped for temporary MinIO STS credentials.
+- Bearer verification: JWT check against the same realm's JWKS.
+"""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from functools import lru_cache
+import asyncio
 import logging
 import os
-from typing import Annotated, Any, Literal
+from dataclasses import dataclass
+from datetime import datetime
+from functools import lru_cache
+from typing import Any
+from xml.etree import ElementTree
 
 import httpx
 import jwt
@@ -16,58 +28,53 @@ from ept.infrastructure.utils.logging import token_diagnostic
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_EDITO_AUTH_URL = (
-    "https://auth.dive.edito.eu/auth/realms/datalab/protocol/openid-connect/token"
-)
-DEFAULT_EDITO_CLIENT_ID = "edito"
-DEFAULT_EDITO_SCOPE = "openid offline_access"
+# --- configuration --------------------------------------------------------
+#
+# Only the issuer, the API client id, and the S3 endpoint are configurable;
+# everything else is fixed by the EDITO platform.
 
-# Keep the two OAuth grants as separate models, discriminated by `grant_type`
-# (matching EDITO's Keycloak token endpoint). They have different required
-# fields, so modelling them separately preserves an accurate OpenAPI schema
-# and lets Pydantic validate only the selected grant, producing clear,
-# branch-specific validation errors instead of ambiguous untagged-union errors.
-# A single model would make grant-specific fields optional and leads OpenAPI
-# clients such as Postman to generate an unusable `{}` request body.
-class EditoPasswordTokenRequest(BaseModel):
-    """Password grant requiring both an EDITO username and password."""
+DEFAULT_ISSUER = "https://auth.dive.edito.eu/auth/realms/datalab"
+DEFAULT_S3_ENDPOINT_URL = "https://minio.dive.edito.eu"
 
-    model_config = ConfigDict(
-        extra="forbid",
-        json_schema_extra={
-            "examples": [
-                {
-                    "grant_type": "password",
-                    "username": "YOUR_EDITO_USERNAME",
-                    "password": "YOUR_EDITO_PASSWORD",
-                }
-            ]
-        },
-    )
+API_SCOPE = "openid offline_access"
+S3_CLIENT_ID = "onyxia-minio"
+S3_SCOPE = "openid email profile"
+S3_SESSION_DURATION_SECONDS = 86_400
 
-    grant_type: Literal["password"]
-    username: str = Field(min_length=1, description="EDITO username for password-grant login.")
-    password: str = Field(min_length=1, description="EDITO password for password-grant login.")
+_TOKEN_PATH = "/protocol/openid-connect/token"
+_JWKS_PATH = "/protocol/openid-connect/certs"
 
 
-class EditoRefreshTokenRequest(BaseModel):
-    """Refresh grant requiring an EDITO refresh token and no credentials."""
-
-    model_config = ConfigDict(
-        extra="forbid",
-        json_schema_extra={
-            "examples": [{"grant_type": "refresh_token", "refresh_token": "YOUR_REFRESH_TOKEN"}]
-        },
-    )
-
-    grant_type: Literal["refresh_token"]
-    refresh_token: str = Field(min_length=1, description="EDITO refresh token for token refresh.")
+def auth_issuer() -> str:
+    """Return the Keycloak realm URL all auth endpoints derive from."""
+    issuer = os.getenv("EDITO_AUTH_ISSUER_URL", "").strip().strip("\"'").rstrip("/")
+    if issuer:
+        return issuer
+    # Legacy deployments configure the full token endpoint; derive the realm.
+    legacy = os.getenv("EDITO_AUTH_URL", "").strip().strip("\"'").rstrip("/")
+    if legacy.endswith(_TOKEN_PATH):
+        return legacy[: -len(_TOKEN_PATH)]
+    return DEFAULT_ISSUER
 
 
-EditoTokenRequest = Annotated[
-    EditoPasswordTokenRequest | EditoRefreshTokenRequest,
-    Field(discriminator="grant_type"),
-]
+def _token_url() -> str:
+    return auth_issuer() + _TOKEN_PATH
+
+
+def _client_id() -> str:
+    """Return the Keycloak client id EPT API tokens are issued to."""
+    return os.getenv("EDITO_AUTH_CLIENT_ID", "edito")
+
+
+def _s3_endpoint_url() -> str:
+    endpoint = os.getenv("EDITO_S3_ENDPOINT_URL", DEFAULT_S3_ENDPOINT_URL)
+    endpoint = endpoint.strip().strip("\"'").rstrip("/")
+    if not endpoint.startswith(("http://", "https://")):
+        endpoint = f"https://{endpoint}"
+    return endpoint
+
+
+# --- public response models -------------------------------------------------
 
 
 class EditoTokenResponse(BaseModel):
@@ -80,6 +87,53 @@ class EditoTokenResponse(BaseModel):
     refresh_expires_in: int | None = None
 
 
+class S3ConnectionParameters(BaseModel):
+    """Minimum parameters needed to connect to EDITO S3 storage."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    endpoint_url: str = Field(description="HTTPS endpoint for EDITO S3-compatible storage.")
+    access_key_id: str = Field(min_length=1, description="Temporary S3 access key ID.")
+    secret_access_key: str = Field(min_length=1, description="Temporary S3 secret access key.")
+    # Optional: only needed for STS-issued temporary credentials; static keys
+    # (e.g. self-hosted MinIO) connect without one.
+    session_token: str | None = Field(
+        default=None, min_length=1, description="Temporary S3 session token, if any."
+    )
+
+    def storage_options(self) -> dict[str, str]:
+        """Return s3fs-compatible options without mutating process environment."""
+        options = {
+            "key": self.access_key_id,
+            "secret": self.secret_access_key,
+            "endpoint_url": self.endpoint_url,
+        }
+        if self.session_token:
+            options["token"] = self.session_token
+        return options
+
+
+class S3Credentials(S3ConnectionParameters):
+    """Temporary S3 connection parameters plus STS session metadata."""
+
+    expiration: datetime | None = Field(
+        default=None,
+        description="UTC expiration reported by S3 STS.",
+    )
+
+
+class EditoAuthResponse(EditoTokenResponse):
+    """API tokens and, for password login, a temporary EDITO S3 session."""
+
+    s3_credentials: S3Credentials | None = Field(
+        description=(
+            "Temporary 24-hour EDITO S3 credentials returned by password login. "
+            "This is null for refresh-token grants; retain the existing S3 session "
+            "until its expiration."
+        ),
+    )
+
+
 @dataclass(frozen=True)
 class EditoBearerAuth:
     """Validated caller identity extracted from an EDITO bearer token."""
@@ -89,6 +143,7 @@ class EditoBearerAuth:
     claims: dict[str, Any]
     access_token: str
 
+
 class EditoBearerAuthError(ValueError):
     """Raised when EDITO token exchange or validation fails."""
 
@@ -97,35 +152,117 @@ class EditoBearerAuthError(ValueError):
         super().__init__(message)
 
 
+# --- flow 1: API tokens (password and refresh grants) -----------------------
+
+
 async def exchange_username_password(username: str, password: str) -> EditoTokenResponse:
     """Exchange EDITO username/password credentials for access and refresh tokens."""
     if not username or not password:
         raise EditoBearerAuthError("Username and password are required.")
-    return await _exchange_token(
-        {
-            "grant_type": "password",
-            "client_id": _client_id(),
-            "username": username,
-            "password": password,
-            "scope": _scope(),
-        },
-        grant_type="password",
+    payload = await _post_token_grant(
+        _client_id(),
+        API_SCOPE,
+        {"grant_type": "password", "username": username, "password": password},
     )
+    return _token_pair(payload)
 
 
 async def exchange_refresh_token(refresh_token: str) -> EditoTokenResponse:
     """Exchange an EDITO refresh token for a fresh access/refresh token pair."""
     if not refresh_token:
         raise EditoBearerAuthError("Refresh token is required.")
-    return await _exchange_token(
-        {
-            "grant_type": "refresh_token",
-            "client_id": _client_id(),
-            "refresh_token": refresh_token,
-            "scope": _scope(),
-        },
-        grant_type="refresh_token",
+    payload = await _post_token_grant(
+        _client_id(),
+        API_SCOPE,
+        {"grant_type": "refresh_token", "refresh_token": refresh_token},
     )
+    return _token_pair(payload)
+
+
+# --- flow 2: temporary S3 credentials ---------------------------------------
+
+
+async def exchange_s3_credentials(username: str, password: str) -> S3Credentials:
+    """Exchange EDITO credentials for a temporary 24-hour S3 session.
+
+    Two steps: a password grant against the shared Keycloak token endpoint
+    yields an identity token the MinIO STS endpoint accepts, then that token
+    is swapped for temporary S3 credentials.
+    """
+    if not username or not password:
+        raise EditoBearerAuthError("Username and password are required.")
+
+    payload = await _post_token_grant(
+        S3_CLIENT_ID,
+        S3_SCOPE,
+        {"grant_type": "password", "username": username, "password": password},
+    )
+    identity_token = payload.get("access_token")
+    if not isinstance(identity_token, str) or not identity_token:
+        raise EditoBearerAuthError(
+            "EDITO authentication response did not include an access token.",
+            reason="auth_response_missing_tokens",
+        )
+    return await _exchange_s3_session(identity_token)
+
+
+async def exchange_auth_credentials(username: str, password: str) -> EditoAuthResponse:
+    """Create API tokens and S3 credentials from one caller login."""
+    logger.info("Starting combined EDITO API and S3 authentication")
+    token_response, s3_credentials = await asyncio.gather(
+        exchange_username_password(username, password),
+        exchange_s3_credentials(username, password),
+    )
+    logger.info("Completed combined EDITO API and S3 authentication")
+    return EditoAuthResponse(
+        **token_response.model_dump(),
+        s3_credentials=s3_credentials,
+    )
+
+
+async def _exchange_s3_session(identity_token: str) -> S3Credentials:
+    """Swap a Keycloak identity token for temporary MinIO STS credentials."""
+    endpoint_url = _s3_endpoint_url()
+    # Sent as a form body, not query parameters, so the identity token never
+    # appears in request URLs (which httpx logs).
+    data = {
+        "Action": "AssumeRoleWithWebIdentity",
+        "WebIdentityToken": identity_token,
+        "DurationSeconds": str(S3_SESSION_DURATION_SECONDS),
+        "Version": "2011-06-15",
+    }
+    logger.info(
+        "Requesting EDITO S3 session endpoint=%s duration_seconds=%d",
+        endpoint_url,
+        S3_SESSION_DURATION_SECONDS,
+    )
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            response = await client.post(endpoint_url, data=data, follow_redirects=True)
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            # The STS error XML carries a plain error code; safe to log.
+            logger.warning(
+                "EDITO S3 session exchange failed status_code=%s error=%s",
+                exc.response.status_code,
+                exc.response.text[:500],
+            )
+            raise EditoBearerAuthError("EDITO S3 authentication failed.", reason="auth_failed") from exc
+        except httpx.HTTPError as exc:
+            logger.warning(
+                "EDITO S3 session exchange unavailable error_type=%s",
+                type(exc).__name__,
+            )
+            raise EditoBearerAuthError(
+                "EDITO S3 authentication service is unavailable.",
+                reason="auth_unavailable",
+            ) from exc
+
+        values = _parse_s3_credentials(response.text)
+        return S3Credentials(endpoint_url=endpoint_url, **values)
+
+
+# --- flow 3: bearer-token verification --------------------------------------
 
 
 def validate_bearer_token(token: str) -> EditoBearerAuth:
@@ -141,9 +278,9 @@ def validate_bearer_token(token: str) -> EditoBearerAuth:
     if not token:
         raise EditoBearerAuthError("Bearer token is required.", reason="missing_bearer_token")
 
-    issuer = _keycloak_issuer_url()
-    expected_client = os.getenv("EDITO_AUTH_AUDIENCE") or _client_id()
-    jwks_url = f"{issuer}/protocol/openid-connect/certs"
+    issuer = auth_issuer()
+    expected_client = _client_id()
+    jwks_url = f"{issuer}{_JWKS_PATH}"
     logger.info(
         "Validating EDITO bearer token token=%s issuer=%s expected_client=%s",
         token_diagnostic(token),
@@ -207,60 +344,79 @@ def _jwks_client(jwks_url: str) -> jwt.PyJWKClient:
     return jwt.PyJWKClient(jwks_url)
 
 
-def s3_auth() -> None:
-    """Placeholder EDITO S3 auth helper; unrelated to API bearer/publishing auth. possible future
-    implementation: use EDITO Keycloak client credentials to get a temporary S3 token for EPT to use
-    when uploading STAC assets to the EDITO S3 bucket."""
-    raise NotImplementedError("EDITO S3 auth is a placeholder and does not read EDITO user credentials.")
+def _token_matches_client(claims: dict[str, Any], expected_client: str) -> bool:
+    """Check whether token claims identify the configured EPT client."""
+    audience = claims.get("aud")
+    if isinstance(audience, str) and audience == expected_client:
+        return True
+    if isinstance(audience, list) and expected_client in audience:
+        return True
+    return claims.get("azp") == expected_client
 
 
-async def _exchange_token(data: dict[str, str], *, grant_type: str) -> EditoTokenResponse:
-    """Send one token grant to Keycloak and parse the returned token pair."""
-    auth_url = _auth_url()
-    logger.info("Requesting EDITO token grant_type=%s auth_url=%s client_id=%s", grant_type, auth_url, data["client_id"])
-    async with httpx.AsyncClient(timeout=30.0) as client:
+# --- shared Keycloak plumbing -----------------------------------------------
+
+
+async def _post_token_grant(client_id: str, scope: str, fields: dict[str, str]) -> dict[str, Any]:
+    """POST one OAuth grant to the shared token endpoint; return its JSON."""
+    data = {"client_id": client_id, "scope": scope, **fields}
+    url = _token_url()
+    logger.info(
+        "Requesting EDITO token grant_type=%s auth_url=%s client_id=%s",
+        fields["grant_type"],
+        url,
+        client_id,
+    )
+    async with httpx.AsyncClient(timeout=30.0) as http:
         try:
-            response = await client.post(auth_url, data=data, follow_redirects=True)
+            response = await http.post(url, data=data, follow_redirects=True)
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             logger.warning(
-                "EDITO token exchange failed grant_type=%s status_code=%s",
-                grant_type,
+                "EDITO token exchange failed grant_type=%s client_id=%s status_code=%s",
+                fields["grant_type"],
+                client_id,
                 exc.response.status_code,
             )
             raise EditoBearerAuthError("EDITO authentication failed.", reason="auth_failed") from exc
         except httpx.HTTPError as exc:
-            logger.warning("EDITO token exchange unavailable grant_type=%s error=%s", grant_type, exc)
+            logger.warning(
+                "EDITO token exchange unavailable grant_type=%s client_id=%s error=%s",
+                fields["grant_type"],
+                client_id,
+                exc,
+            )
             raise EditoBearerAuthError(
                 "EDITO authentication service is unavailable.",
                 reason="auth_unavailable",
             ) from exc
 
         payload = _json_object(response)
-        access_token = payload.get("access_token")
-        refresh_token = payload.get("refresh_token")
-        if not access_token or not refresh_token:
-            logger.warning("EDITO token exchange returned incomplete token payload grant_type=%s", grant_type)
-            raise EditoBearerAuthError(
-                "EDITO authentication response did not include access and refresh tokens.",
-                reason="auth_response_missing_tokens",
-            )
-        token_response = EditoTokenResponse(
-            access_token=str(access_token),
-            refresh_token=str(refresh_token),
-            token_type=str(payload.get("token_type") or "bearer").lower(),
-            expires_in=_optional_int(payload.get("expires_in")),
-            refresh_expires_in=_optional_int(payload.get("refresh_expires_in")),
-        )
         logger.info(
-            "EDITO token exchange succeeded grant_type=%s access_token=%s refresh_token=%s expires_in=%s refresh_expires_in=%s",
-            grant_type,
-            token_diagnostic(token_response.access_token),
-            token_diagnostic(token_response.refresh_token),
-            token_response.expires_in,
-            token_response.refresh_expires_in,
+            "EDITO token exchange succeeded grant_type=%s client_id=%s access_token=%s",
+            fields["grant_type"],
+            client_id,
+            token_diagnostic(str(payload.get("access_token") or "")),
         )
-        return token_response
+        return payload
+
+
+def _token_pair(payload: dict[str, Any]) -> EditoTokenResponse:
+    """Normalize a Keycloak token payload, requiring the access/refresh pair."""
+    access_token = payload.get("access_token")
+    refresh_token = payload.get("refresh_token")
+    if not access_token or not refresh_token:
+        raise EditoBearerAuthError(
+            "EDITO authentication response did not include access and refresh tokens.",
+            reason="auth_response_missing_tokens",
+        )
+    return EditoTokenResponse(
+        access_token=str(access_token),
+        refresh_token=str(refresh_token),
+        token_type=str(payload.get("token_type") or "bearer").lower(),
+        expires_in=_optional_int(payload.get("expires_in")),
+        refresh_expires_in=_optional_int(payload.get("refresh_expires_in")),
+    )
 
 
 def _json_object(response: httpx.Response) -> dict[str, Any]:
@@ -280,46 +436,37 @@ def _json_object(response: httpx.Response) -> dict[str, Any]:
     return payload
 
 
-def _auth_url() -> str:
-    """Return the configured Keycloak token endpoint URL."""
-    return os.getenv("EDITO_AUTH_URL", DEFAULT_EDITO_AUTH_URL).rstrip("/")
+def _parse_s3_credentials(xml: str) -> dict[str, Any]:
+    """Parse an AWS STS-compatible XML credential response."""
+    try:
+        root = ElementTree.fromstring(xml)
+    except ElementTree.ParseError as exc:
+        raise EditoBearerAuthError("EDITO S3 returned an invalid response.") from exc
 
+    values = {
+        element.tag.rsplit("}", 1)[-1]: (element.text or "").strip()
+        for element in root.iter()
+    }
+    required = {
+        "access_key_id": "AccessKeyId",
+        "secret_access_key": "SecretAccessKey",
+        "session_token": "SessionToken",
+    }
+    parsed: dict[str, Any] = {field: values.get(tag, "") for field, tag in required.items()}
+    if not all(parsed.values()):
+        raise EditoBearerAuthError("EDITO S3 did not return complete credentials.")
 
-def _client_id() -> str:
-    """Return the Keycloak client id used by EPT."""
-    return os.getenv("EDITO_AUTH_CLIENT_ID", DEFAULT_EDITO_CLIENT_ID)
-
-
-def _scope() -> str:
-    """Return the Keycloak OAuth scope requested by EPT token exchanges."""
-    return os.getenv("EDITO_AUTH_SCOPE", DEFAULT_EDITO_SCOPE)
-
-
-def _keycloak_issuer_url() -> str:
-    """Return the issuer URL used for JWT signature and issuer validation."""
-    explicit_issuer = os.getenv("EDITO_AUTH_ISSUER_URL", "").strip().strip("\"'").rstrip("/")
-    if explicit_issuer:
-        return explicit_issuer
-
-    auth_url = _auth_url()
-    suffix = "/protocol/openid-connect/token"
-    if not auth_url.endswith(suffix):
-        raise EditoBearerAuthError(
-            "EDITO_AUTH_URL must point to the Keycloak token endpoint.",
-            reason="auth_config_invalid",
-        )
-
-    return auth_url[: -len(suffix)].rstrip("/")
-
-
-def _token_matches_client(claims: dict[str, Any], expected_client: str) -> bool:
-    """Check whether token claims identify the configured EPT client."""
-    audience = claims.get("aud")
-    if isinstance(audience, str) and audience == expected_client:
-        return True
-    if isinstance(audience, list) and expected_client in audience:
-        return True
-    return claims.get("azp") == expected_client
+    expiration = values.get("Expiration")
+    if expiration:
+        try:
+            parsed["expiration"] = datetime.fromisoformat(expiration)
+        except ValueError as exc:
+            raise EditoBearerAuthError(
+                "EDITO S3 returned an invalid credential expiration."
+            ) from exc
+    else:
+        parsed["expiration"] = None
+    return parsed
 
 
 def _optional_int(value: Any) -> int | None:

@@ -1,16 +1,16 @@
 # Get my catalogs
 
-List the IDs of the EDITO STAC project catalogs available to the authenticated user:
+List the IDs of the EDITO STAC project catalogs available to the authenticated user. Use it to find the `catalog_id` values accepted by the [publish](publish-stac.md) and [remove](remove-stac.md) features.
+
+## Endpoint
 
 ```text
 GET /v1/edito/stac/mycatalogs
 ```
 
-Retrieves the user's typed catalog records from the EDITO STAC API and returns the `id` values beginning with `projects/` as an array of strings.
-It requires `Authorization: Bearer <access_token>`; a refresh token is not required.
+Authentication: `Authorization: Bearer <access_token>`. A refresh token is not required.
 
-
-## List catalog IDs you have access to
+## Usage
 
 ```bash
 curl --fail-with-body \
@@ -26,8 +26,6 @@ Example response:
   "projects/demo/catalog-1"
 ]
 ```
-
-## Use project catalog IDs
 
 To display each full project catalog ID on a separate line:
 
@@ -46,35 +44,7 @@ projects/my-project/catalog-1
 projects/my-project/catalog-1/catalog-2
 ```
 
-The publish and remove request field is named `catalog_id` and accepts
-this catalog ID.
-
-To publish under a project catalog, pass `projects/{project-id}`.
-
-To remove a catalog from a project catalog, pass an ID such as
-`projects/{project-id}/catalog-1` or `projects/{project-id}/catalog-1/catalog-2`.
-
-## Export catalogs to JSON
-
-The endpoint already returns a JSON array of catalog IDs. Save the response to a file with:
-
-```bash
-curl --fail-with-body \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  "${EPT_API_URL}/v1/edito/stac/mycatalogs" \
-  --output catalog-ids.json
-```
-
-To save pretty-printed JSON with `jq`:
-
-```bash
-curl --fail-with-body \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  "${EPT_API_URL}/v1/edito/stac/mycatalogs" \
-  | jq '.' > catalog-ids.json
-```
-
-## Python (`httpx`)
+### Python (`httpx`)
 
 ```python
 import json
@@ -100,7 +70,13 @@ with (workspace / "catalog-ids.json").open("w", encoding="utf-8") as output:
     json.dump(catalog_ids, output, indent=2)
 ```
 
-This endpoint can be used to find a catalog IDs your have access to use for the [publish-stac](publish-stac.md) and [remove-stac](remove-stac.md) features.
+## Response
 
- - [publish-stac](publish-stac.md) 
- - [remove-stac](remove-stac.md)
+The endpoint retrieves the user's typed catalog records from the EDITO STAC API and returns the `id` values beginning with `projects/` as an array of strings.
+
+## Good to know
+
+- The `catalog_id` field of the publish and remove requests accepts these IDs:
+  - To publish under a project catalog, pass `projects/{project-id}`.
+  - To remove a catalog, pass an ID such as `projects/{project-id}/catalog-1` or `projects/{project-id}/catalog-1/catalog-2`.
+- The endpoint already returns a JSON array of catalog IDs. Save the response to a file with `curl ... --output catalog-ids.json`, or pretty-print it with `| jq '.' > catalog-ids.json`.

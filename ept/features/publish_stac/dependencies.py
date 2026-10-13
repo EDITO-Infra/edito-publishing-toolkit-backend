@@ -1,7 +1,8 @@
-"""Shared FastAPI dependencies for publishing-backed EPT routes."""
+"""Feature-local authentication dependencies for publishing job submission."""
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, status
@@ -9,10 +10,7 @@ from fastapi import Depends, Header, HTTPException, status
 from ept.api.dependencies import (
     AuthFailureDetail,
     EditoBearerAuthDep,
-    HttpClientDep,
 )
-from .client import PublishingServiceClient
-from .models import PublishingServiceJobAuth
 
 REFRESH_TOKEN_OPENAPI_PARAMETER = {
     "name": "X-EDITO-Refresh-Token",
@@ -26,11 +24,12 @@ REFRESH_TOKEN_OPENAPI_PARAMETER = {
 }
 
 
-async def get_publishing_service_client(
-    client: HttpClientDep,
-) -> PublishingServiceClient:
-    """Build the single outbound publishing gateway used by a route request."""
-    return PublishingServiceClient(client)
+@dataclass(frozen=True)
+class PublishingJobAuth:
+    """Access and refresh tokens required for upstream job submission."""
+
+    access_token: str
+    refresh_token: str
 
 
 async def require_publishing_job_auth(
@@ -40,7 +39,7 @@ async def require_publishing_job_auth(
         alias="X-EDITO-Refresh-Token",
         include_in_schema=False,
     ),
-) -> PublishingServiceJobAuth:
+) -> PublishingJobAuth:
     """Require the access and refresh tokens needed to submit an upstream job."""
     if not refresh_token:
         raise HTTPException(
@@ -51,11 +50,10 @@ async def require_publishing_job_auth(
             ).__dict__,
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return PublishingServiceJobAuth(
+    return PublishingJobAuth(
         access_token=edito_bearer_auth.access_token,
         refresh_token=refresh_token,
     )
 
 
-PublishingAuthDep = Annotated[PublishingServiceJobAuth, Depends(require_publishing_job_auth)]
-PublishingClientDep = Annotated[PublishingServiceClient, Depends(get_publishing_service_client)]
+PublishingAuthDep = Annotated[PublishingJobAuth, Depends(require_publishing_job_auth)]

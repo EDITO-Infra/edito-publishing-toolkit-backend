@@ -1,0 +1,2 @@
+"""Reusable storage adapters."""
+

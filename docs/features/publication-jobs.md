@@ -1,45 +1,20 @@
 # Monitor a Publication Job
 
-Use the job ID returned by a publish or removal request to inspect the job's
-status, result summary, and logs through EPT.
+Use the job ID returned by a [publish](publish-stac.md) or [remove](remove-stac.md) request to inspect the job's status, result summary, and logs through EPT.
 
-This page documents EPT's public API, not the Publisher API directly. EPT
-forwards the request to the Publisher, presents log pages in EPT's response
-shape, and rewrites Publisher continuation links as EPT `next` links.
+## Endpoint
 
-## Authentication
-
-Every request requires an EDITO access token:
-
-```http
-Authorization: Bearer <access_token>
+```text
+GET /v1/edito/publish/jobs/{job_id}
 ```
 
-This is a bodyless `GET`, so `Content-Type` is not required. Do not send
-`X-EDITO-Refresh-Token`. In interactive API documentation, authorize with the
-access token only; the `Bearer` prefix is added automatically.
+Authentication: `Authorization: Bearer <access_token>`.
 
-## How the endpoint works
+## Usage
 
-`GET /v1/edito/publish/jobs/{job_id}` returns the lifecycle summary by default.
-Poll this endpoint while the job has status `queued` or `running`. The terminal
-statuses are `succeeded`, `failed`, `cancelled`, and `interrupted`; use the
-publisher-provided `message` and, when needed, log views to diagnose a terminal
-failure.
+Poll the endpoint while the job has status `queued` or `running`. The terminal statuses are `succeeded`, `failed`, `cancelled`, and `interrupted`; use the publisher-provided `message` and, when needed, log views to diagnose a terminal failure.
 
-| Query | Result |
-| --- | --- |
-| none or `?view=summary` | Minimal job lifecycle summary and publisher message |
-| `?view=detail` | Summary plus one page of readable, normalized logs |
-| `?view=raw` | Summary plus one page of canonical redacted raw logs |
-| `limit=1..1000` | Maximum records in a log page; default is `100` |
-| `cursor=<value>` | Continue from the cursor in the previous response's `next` link |
-
-Unknown query parameters are rejected. `limit` and `cursor` are relevant only
-to detail and raw views. Do not substitute the Publisher's `after_id` query
-parameter for EPT's `cursor`; follow EPT's `next` link exactly as returned.
-
-## Job summary
+### Job summary
 
 ```bash
 curl "${EPT_API_URL}/v1/edito/publish/jobs/${JOB_ID}" \
@@ -59,15 +34,14 @@ curl "${EPT_API_URL}/v1/edito/publish/jobs/${JOB_ID}" \
 }
 ```
 
-## Log pages
+### Log pages
 
 ```bash
 curl "${EPT_API_URL}/v1/edito/publish/jobs/${JOB_ID}?view=detail&limit=100" \
   --header "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
-The summary fields remain at the top level. Log views add `logs`, `total`,
-`limit`, `next`, and `page_message`:
+The summary fields remain at the top level. Log views add `logs`, `total`, `limit`, `next`, and `page_message`:
 
 ```json
 {
@@ -83,21 +57,28 @@ The summary fields remain at the top level. Log views add `logs`, `total`,
 }
 ```
 
-Follow `next` exactly as returned, using the same EPT base URL and access
-token. The final page has `"next": null`.
+Follow `next` exactly as returned, using the same EPT base URL and access token. The final page has `"next": null`.
 
-EPT translates its public `cursor` to the Publisher's `after_id` parameter and
-rewrites the upstream continuation URL as an EPT `next` link. Clients should
-treat the cursor as a continuation value and follow `next` rather than construct
-cursor values themselves.
+## Query parameters
+
+| Query | Result |
+| --- | --- |
+| none or `?view=summary` | Minimal job lifecycle summary and publisher message |
+| `?view=detail` | Summary plus one page of readable, normalized logs |
+| `?view=raw` | Summary plus one page of canonical redacted raw logs |
+| `limit=1..1000` | Maximum records in a log page; default is `100` |
+| `cursor=<value>` | Continue from the cursor in the previous response's `next` link |
+
+Unknown query parameters are rejected. `limit` and `cursor` are relevant only to detail and raw views.
+
+## Good to know
+
+- This is a bodyless `GET`, so `Content-Type` is not required. Do not send `X-EDITO-Refresh-Token`. In interactive API documentation, authorize with the access token only; the `Bearer` prefix is added automatically.
+- This page documents EPT's public API, not the Publisher API directly. EPT forwards the request to the Publisher, presents log pages in EPT's response shape, and rewrites Publisher continuation links as EPT `next` links. EPT translates its public `cursor` to the Publisher's `after_id` parameter — do not substitute `after_id` for EPT's `cursor`; follow `next` rather than constructing cursor values yourself.
 
 ## Export all raw logs as NDJSON
 
-The following examples follow every `next` link and produce one compact JSON
-object per line. Each raw event is tagged with its `job_id`, making the file
-self-describing when it is moved, combined, or ingested elsewhere. Both examples
-write to a temporary file first, so an incomplete export is never presented as a
-finished `.ndjson` file.
+The following examples follow every `next` link and produce one compact JSON object per line. Each raw event is tagged with its `job_id`, making the file self-describing when it is moved, combined, or ingested elsewhere. Both examples write to a temporary file first, so an incomplete export is never presented as a finished `.ndjson` file.
 
 ### Bash
 
@@ -134,7 +115,7 @@ curl --fail --silent --show-error \
   > "publication-job-${JOB_ID}.raw.ndjson"
 ```
 
-## Python (`httpx`)
+### Python (`httpx`)
 
 ```python
 import json

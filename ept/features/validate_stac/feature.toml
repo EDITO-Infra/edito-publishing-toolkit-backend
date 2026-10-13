@@ -1,0 +1,26 @@
+[feature]
+key = "validate.stac"
+release = "1.0.0"
+title = "STAC Validation Service"
+description = "Validates remote STAC objects (Catalogs, Collections, Items) against core specs and EDITO-specific constraints."
+depends_on = []
+
+[package]
+requires = ["fastapi", "httpx", "pydantic-settings", "stac-valid", "jsonschema"]
+
+[entrypoints]
+python = ["ept.features.validate_stac.service:validate_stac"]
+
+[api]
+router = "ept.features.validate_stac.routes:router"
+
+[[api.routes]]
+method = "POST"
+path = "/v1/stac/validate"
+summary = "Validate a remote STAC object"
+request_model = "ept.features.validate_stac.models:ValidateStacRequest"
+response_model = "ept.features.validate_stac.models:ValidateStacResponse"
+
+[tests]
+unit = "tests/features/validate_stac/test_stac.py"
+integration = "tests/features/validate_stac/test_validate_stac.py"

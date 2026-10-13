@@ -2,14 +2,31 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-
 import pytest
 
+import ept.infrastructure.utils.urlguard as urlguard
 from ept.api.dependencies import get_http_client, require_edito_bearer_auth
 from ept.api.main import app
 from ept.infrastructure.services.edito_auth import EditoBearerAuth
-from tests.infrastructure.publishing_fakes import RecordingPublishingHttpClient
+
+
+@pytest.fixture(autouse=True)
+def fake_public_dns(request, monkeypatch):
+    """Resolve every hostname to a public IP in unit tests.
+
+    The SSRF guard resolves DNS before fetching; unit tests drive MockTransport
+    with fake hostnames, so real resolution is neither wanted nor available.
+    Integration tests keep real DNS for live services.
+    """
+    if "integration" in request.keywords:
+        yield
+        return
+
+    async def public_resolution(host: str) -> list[str]:
+        return ["93.184.216.34"]
+
+    monkeypatch.setattr(urlguard, "_resolve", public_resolution)
+    yield
 
 
 @pytest.fixture(autouse=True)
@@ -33,19 +50,3 @@ def authenticated_api_request(request):
     app.dependency_overrides[require_edito_bearer_auth] = authenticated_principal
     yield
     app.dependency_overrides.pop(require_edito_bearer_auth, None)
-
-
-@pytest.fixture
-def publishing_http_client(monkeypatch: pytest.MonkeyPatch) -> Iterator[RecordingPublishingHttpClient]:
-    """Inject a recording outbound HTTP fake into one feature test."""
-    fake = RecordingPublishingHttpClient()
-    monkeypatch.setenv("PUBLISHING_API_URL", "https://publishing.test")
-
-    async def override_http_client() -> RecordingPublishingHttpClient:
-        return fake
-
-    app.dependency_overrides[get_http_client] = override_http_client
-    try:
-        yield fake
-    finally:
-        app.dependency_overrides.pop(get_http_client, None)

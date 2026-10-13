@@ -6,7 +6,12 @@ refresh token for bearer tokens before calling protected API routes.
 
 import asyncio
 
-from ept.infrastructure.services.edito_auth import EditoBearerAuthError, EditoTokenResponse
+from ept.infrastructure.services.edito_auth import (
+    EditoAuthResponse,
+    EditoBearerAuthError,
+    EditoTokenResponse,
+    S3Credentials,
+)
 
 from .helpers import create_api_shell_test_app, request
 from tests.conftest import unit
@@ -14,29 +19,36 @@ from tests.conftest import unit
 
 @unit
 def test_auth_endpoint_exchanges_username_password_for_tokens(monkeypatch):
-    """The public auth route exchanges username/password credentials for tokens."""
+    """Password login returns API tokens and the caller's temporary S3 session."""
     app = create_api_shell_test_app()
     calls: list[dict] = []
+    password = r'generated/secret\value"with/slash'
 
-    async def fake_exchange(username: str, password: str) -> EditoTokenResponse:
-        """Record the password grant inputs and return a stable token response."""
+    async def fake_exchange(username: str, password: str) -> EditoAuthResponse:
+        """Record the password grant inputs and return stable API and S3 credentials."""
         calls.append({"username": username, "password": password})
-        return EditoTokenResponse(
+        return EditoAuthResponse(
             access_token="access-secret",
             refresh_token="refresh-secret",
             token_type="bearer",
             expires_in=300,
             refresh_expires_in=1800,
+            s3_credentials=S3Credentials(
+                endpoint_url="https://s3.example.test",
+                access_key_id="temporary-key",
+                secret_access_key="temporary-secret",
+                session_token="temporary-session",
+            ),
         )
 
-    monkeypatch.setattr("ept.api.auth.exchange_username_password", fake_exchange)
+    monkeypatch.setattr("ept.api.auth.exchange_auth_credentials", fake_exchange)
 
     response = asyncio.run(
         request(
             "POST",
             "/v1/auth",
             app=app,
-            json={"grant_type": "password", "username": "alice", "password": "dashboard-secret"},
+            data={"username": "alice", "password": password},
         )
     )
 
@@ -47,8 +59,15 @@ def test_auth_endpoint_exchanges_username_password_for_tokens(monkeypatch):
         "token_type": "bearer",
         "expires_in": 300,
         "refresh_expires_in": 1800,
+        "s3_credentials": {
+            "endpoint_url": "https://s3.example.test",
+            "access_key_id": "temporary-key",
+            "secret_access_key": "temporary-secret",
+            "session_token": "temporary-session",
+            "expiration": None,
+        },
     }
-    assert calls == [{"username": "alice", "password": "dashboard-secret"}]
+    assert calls == [{"username": "alice", "password": password}]
 
 
 @unit
@@ -77,7 +96,7 @@ def test_auth_endpoint_exchanges_refresh_token_for_new_tokens(monkeypatch):
             "POST",
             "/v1/auth",
             app=app,
-            json={"grant_type": "refresh_token", "refresh_token": "old-refresh"},
+            data={"refresh_token": "old-refresh"},
         )
     )
 
@@ -97,7 +116,7 @@ def test_auth_endpoint_rejects_ambiguous_grant():
             "POST",
             "/v1/auth",
             app=app,
-            json={"username": "alice", "password": "secret", "refresh_token": "refresh"},
+            data={"username": "alice", "password": "secret", "refresh_token": "refresh"},
         )
     )
 
@@ -107,24 +126,44 @@ def test_auth_endpoint_rejects_ambiguous_grant():
 
 
 @unit
+def test_auth_endpoint_rejects_incomplete_password_credentials():
+    """Password authentication requires a non-empty username and password."""
+    app = create_api_shell_test_app()
+    response = asyncio.run(
+        request(
+            "POST",
+            "/v1/auth",
+            app=app,
+            data={"username": "alice", "password": ""},
+        )
+    )
+
+    assert response.status_code == 422
+    assert response.headers["content-type"] == "application/problem+json"
+    assert response.json()["type"] == (
+        "https://api.edito-publishing-toolkit.org/problems/invalid-request"
+    )
+
+
+@unit
 def test_auth_endpoint_reports_503_when_auth_service_unavailable(monkeypatch):
     """A Keycloak outage during token exchange is reported as unavailable, not a 401."""
     app = create_api_shell_test_app()
 
-    async def fake_exchange(_username: str, _password: str) -> EditoTokenResponse:
+    async def fake_exchange(_username: str, _password: str) -> EditoAuthResponse:
         """Simulate Keycloak being unreachable during a password-grant exchange."""
         raise EditoBearerAuthError(
             "EDITO authentication service is unavailable.", reason="auth_unavailable"
         )
 
-    monkeypatch.setattr("ept.api.auth.exchange_username_password", fake_exchange)
+    monkeypatch.setattr("ept.api.auth.exchange_auth_credentials", fake_exchange)
 
     response = asyncio.run(
         request(
             "POST",
             "/v1/auth",
             app=app,
-            json={"grant_type": "password", "username": "alice", "password": "secret"},
+            data={"username": "alice", "password": "secret"},
         )
     )
 
@@ -144,18 +183,18 @@ def test_auth_endpoint_hides_upstream_failure_details(monkeypatch):
     """Auth failures expose a safe reason without leaking upstream text."""
     app = create_api_shell_test_app()
 
-    def fake_exchange(_username: str, _password: str) -> EditoTokenResponse:
+    def fake_exchange(_username: str, _password: str) -> EditoAuthResponse:
         """Raise the same auth error shape the infrastructure helper would raise."""
         raise EditoBearerAuthError("upstream leaked detail", reason="auth_failed")
 
-    monkeypatch.setattr("ept.api.auth.exchange_username_password", fake_exchange)
+    monkeypatch.setattr("ept.api.auth.exchange_auth_credentials", fake_exchange)
 
     response = asyncio.run(
         request(
             "POST",
             "/v1/auth",
             app=app,
-            json={"grant_type": "password", "username": "alice", "password": "wrong-secret"},
+            data={"username": "alice", "password": "wrong-secret"}
         )
     )
 

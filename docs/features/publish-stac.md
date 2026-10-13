@@ -1,22 +1,16 @@
-# Publish STAC Usage
+# Publish STAC
 
-Queue a publication job that publishes a STAC Catalog into the
-EDITO STAC API under a project catalog.
+Queue a publication job that publishes a STAC Catalog into the EDITO STAC API under a project catalog. The job runs asynchronously; check the status or the detailed logs using [Publication jobs](publication-jobs.md).
 
-The public request accepts only `remote_stac_url` and `catalog_id`.
+## Endpoint
 
-This endpoint requires both `Authorization: Bearer <access_token>` and
-`X-EDITO-Refresh-Token: <refresh_token>`.
+```text
+POST /v1/edito/stac/publish
+```
 
-Note: A refresh token is required to queue a publication job in the publishing service because an access token
-may expire before the job is processed.
+Authentication: `Authorization: Bearer <access_token>` **and** `X-EDITO-Refresh-Token: <refresh_token>`.
 
-To see catalogs available for publishing, the [Get my catalogs](get-my-catalogs.md) endpoint can be used.
-
-To replace a project catalog completely, remove it first with
-`POST /v1/edito/stac/remove`, then publish the replacement.
-  
-## API
+## Usage
 
 ```bash
 curl -X POST "${EPT_API_URL}/v1/edito/stac/publish" \
@@ -52,7 +46,14 @@ response.raise_for_status()
 print(response.json()["job_id"])
 ```
 
-Example response:
+## Request
+
+The public request accepts only `remote_stac_url` and `catalog_id`:
+
+- `remote_stac_url` — URL of the STAC catalog to publish, for example in your EDITO object storage.
+- `catalog_id` — the EDITO project catalog to publish into, such as `projects/{project-id}`. Use [Get my catalogs](get-my-catalogs.md) to list the IDs available to you.
+
+## Response
 
 ```json
 {
@@ -61,4 +62,9 @@ Example response:
 }
 ```
 
-Use the returned `job_id` with `GET /v1/edito/publish/jobs/{job_id}`.
+Use the returned `job_id` with  [publication-jobs](./publication-jobs.md)
+
+## Good to know
+
+- A refresh token is required because an access token may expire before the queued job is processed.
+- To replace a project catalog completely, remove it first with `POST /v1/edito/stac/remove`, then publish the replacement.

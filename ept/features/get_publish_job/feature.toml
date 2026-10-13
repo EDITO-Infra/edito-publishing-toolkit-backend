@@ -1,5 +1,7 @@
 [feature]
 key = "publish.job.get"
+# Ships in release 1.0.0. Routes are mounted when the manifest release is at or
+# below EPT_ACTIVE_RELEASE (default 1.0.0); see ept.core.registry.
 release = "1.0.0"
 title = "Get publication job"
 description = "Fetch a publication job summary or cursor-paginated job logs by identifier."

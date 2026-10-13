@@ -1,5 +1,7 @@
 [feature]
 key = "remove.stac"
+# Ships in release 1.0.0. Routes are mounted when the manifest release is at or
+# below EPT_ACTIVE_RELEASE (default 1.0.0); see ept.core.registry.
 release = "1.0.0"
 title = "Remove STAC metadata"
 description = "Queue removal of a STAC resource from an EDITO project catalog."

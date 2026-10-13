@@ -1,19 +1,23 @@
 """Repository-wide pytest configuration.
 
 This module owns repository-wide marker policy, local test environment loading,
-and live integration configuration.
+and live integration configuration. It also owns the release-gating policy for
+feature tests: features declared for a future release (see ``feature.toml`` and
+``ept.core.registry``) are not mounted, so their tests skip via
+:func:`feature_is_active` instead of failing against missing routes.
 """
 
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
+from ept.core.registry import FeatureRegistry
 from ept.infrastructure.services.edito_auth import _jwks_client
 
 if TYPE_CHECKING:
@@ -120,6 +124,20 @@ def require_live_env(name: str) -> str:
             pytrace=False,
         )
     return value
+
+
+def feature_is_active(key: str) -> bool:
+    """Return whether a feature's routes are mounted in the active release.
+
+    Feature tests are release-dependent like the features themselves: a feature
+    declared for a later release is absent from the app (its routes return 404
+    and its OpenAPI entries are gone), so its tests must skip rather than fail.
+    Use this in a module-level ``pytestmark`` keyed on the feature's stable key
+    from its ``feature.toml``.
+    """
+    registry = FeatureRegistry.discover()
+    contract = next(c for c in registry.features if c.feature.key == key)
+    return registry.is_active(contract)
 
 
 unit = pytest.mark.unit
