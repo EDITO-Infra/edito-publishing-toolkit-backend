@@ -391,7 +391,7 @@ def validate_batch(
         # validate outcome for every object at default LOG_LEVEL; DEBUG
         # additionally shows the per-fetch/RESOLVED wire steps.
         if is_valid:
-            logger.info(
+            logger.debug(
                 "VALIDATE OK: %s [%s] id=%r depth=%d schema=%.4fs edito=%.4fs issues=%d",
                 item.url,
                 item.obj_type.value,

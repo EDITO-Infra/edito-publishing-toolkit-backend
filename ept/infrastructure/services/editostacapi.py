@@ -86,7 +86,7 @@ class EditoStacApiClient:
             "Accept": "application/json",
             "Authorization": f"Bearer {access_token}",
         }
-        logger.info(
+        logger.debug(
             "Requesting EDITO STAC API url=%s token=%s", url, token_diagnostic(access_token)
         )
         try:

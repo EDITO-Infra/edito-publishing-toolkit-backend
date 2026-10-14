@@ -85,7 +85,7 @@ async def require_edito_bearer_auth(
             exc.reason,
             "The bearer token is not valid."
         ) from exc
-    logger.info(
+    logger.debug(
             "API auth verification succeeded token=%s subject_present=%s username_present=%s",
             token_diagnostic(credentials.credentials),
             bool(bearer_auth.subject),

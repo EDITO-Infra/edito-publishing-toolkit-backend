@@ -16,6 +16,11 @@ from fastapi.openapi.utils import get_openapi
 
 from ept import __version__
 from ept.infrastructure.utils.logging import sanitize_query_string
+from ept.infrastructure.utils.monitoring import (
+    get_log_buffer,
+    record_request_end,
+    record_request_start,
+)
 
 from .auth import router as auth_router
 from .errors import PROBLEM_JSON, register_exception_handlers
@@ -58,7 +63,10 @@ def configure_logging() -> QueueListener:
 
     log_queue: Queue = Queue(-1)
     queue_handler = QueueHandler(log_queue)
-    queue_handler.setLevel(log_level)
+    # Pass DEBUG records into the queue so the in-memory monitoring buffer can
+    # retain them (visible via the logs endpoint with level=DEBUG); the
+    # console/file handlers below still gate their own streams at LOG_LEVEL.
+    queue_handler.setLevel(logging.DEBUG)
 
     file_handler = RotatingFileHandler(
         log_path,
@@ -73,6 +81,16 @@ def configure_logging() -> QueueListener:
     root_logger.setLevel(log_level)
     root_logger.handlers.clear()
     root_logger.addHandler(queue_handler)
+    # Only ept.* loggers may emit DEBUG (auth/poll traces for the monitoring
+    # buffer); third-party libraries stay at LOG_LEVEL to avoid buffer noise.
+    logging.getLogger("ept").setLevel(logging.DEBUG)
+
+    # httpx logs one INFO line per HTTP response — a full STAC traversal would
+    # flood console, file, and monitoring store. Response errors still reach
+    # the log via EPT's own fetch-error handling; only real httpx warnings
+    # (misconfiguration, deprecations) pass this gate.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
 
     console_handler = logging.StreamHandler()
     console_handler.setLevel(log_level)
@@ -82,6 +100,7 @@ def configure_logging() -> QueueListener:
         log_queue,
         console_handler,
         file_handler,
+        get_log_buffer(),
         respect_handler_level=True,
     )
     listener.start()
@@ -216,9 +235,11 @@ def register_request_logging(app: FastAPI) -> None:
         client = request.client.host if request.client else "unknown"
 
         try:
+            record_request_start()
             response = await call_next(request)
         except Exception:
             duration_ms = (time.perf_counter() - started_at) * 1000
+            record_request_end(500)
             logger.exception(
                 "API request failed method=%s path=%s query=%s client=%s duration_ms=%.2f",
                 request.method,
@@ -226,16 +247,22 @@ def register_request_logging(app: FastAPI) -> None:
                 query,
                 client,
                 duration_ms,
+                extra={"event": "http_request"},
             )
             raise
 
         duration_ms = (time.perf_counter() - started_at) * 1000
+        record_request_end(response.status_code)
         if (
             request.method == "GET"
             and request.url.path in {"/", "/v1", "/healthz"}
             and not request.url.query
             and response.status_code < 400
         ):
+            return response
+        # The monitoring UI polls these endpoints continuously; logging the polls
+        # would fill the buffer with its own traffic and evict feature logs.
+        if request.url.path.startswith("/v1/monitoring") and response.status_code < 400:
             return response
         logger.log(
             logging.WARNING if response.status_code >= 400 else logging.INFO,
@@ -246,6 +273,7 @@ def register_request_logging(app: FastAPI) -> None:
             client,
             response.status_code,
             duration_ms,
+            extra={"event": "http_request"},
         )
         return response
 

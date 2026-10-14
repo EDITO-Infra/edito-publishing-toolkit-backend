@@ -110,7 +110,7 @@ def test_token_exchange_logs_safe_diagnostics(caplog, monkeypatch):
             request=httpx.Request("POST", url),
         )
 
-    caplog.set_level(logging.INFO, logger="ept.infrastructure.services.edito_auth")
+    caplog.set_level(logging.DEBUG, logger="ept.infrastructure.services.edito_auth")
     monkeypatch.delenv("EPT_LOG_TOKEN_VALUES", raising=False)
     monkeypatch.setenv("EDITO_AUTH_ISSUER_URL", "https://auth.test/auth/realms/test")
     monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)

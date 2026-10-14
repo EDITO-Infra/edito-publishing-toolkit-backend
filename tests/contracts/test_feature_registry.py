@@ -17,6 +17,7 @@ def test_registry_discovers_registered_features():
     registry = FeatureRegistry.discover()
     assert {feature.feature.key for feature in registry.features} == {
         "catalogs.mine.get",
+        "monitoring.query",
         "publish.job.get",
         "publish.stac",
         "remove.stac",

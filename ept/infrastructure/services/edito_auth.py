@@ -208,12 +208,12 @@ async def exchange_s3_credentials(username: str, password: str) -> S3Credentials
 
 async def exchange_auth_credentials(username: str, password: str) -> EditoAuthResponse:
     """Create API tokens and S3 credentials from one caller login."""
-    logger.info("Starting combined EDITO API and S3 authentication")
+    logger.debug("Starting combined EDITO API and S3 authentication")
     token_response, s3_credentials = await asyncio.gather(
         exchange_username_password(username, password),
         exchange_s3_credentials(username, password),
     )
-    logger.info("Completed combined EDITO API and S3 authentication")
+    logger.debug("Completed combined EDITO API and S3 authentication")
     return EditoAuthResponse(
         **token_response.model_dump(),
         s3_credentials=s3_credentials,
@@ -231,7 +231,7 @@ async def _exchange_s3_session(identity_token: str) -> S3Credentials:
         "DurationSeconds": str(S3_SESSION_DURATION_SECONDS),
         "Version": "2011-06-15",
     }
-    logger.info(
+    logger.debug(
         "Requesting EDITO S3 session endpoint=%s duration_seconds=%d",
         endpoint_url,
         S3_SESSION_DURATION_SECONDS,
@@ -281,7 +281,7 @@ def validate_bearer_token(token: str) -> EditoBearerAuth:
     issuer = auth_issuer()
     expected_client = _client_id()
     jwks_url = f"{issuer}{_JWKS_PATH}"
-    logger.info(
+    logger.debug(
         "Validating EDITO bearer token token=%s issuer=%s expected_client=%s",
         token_diagnostic(token),
         issuer,
@@ -325,7 +325,7 @@ def validate_bearer_token(token: str) -> EditoBearerAuth:
         logger.warning("EDITO bearer token rejected reason=invalid_bearer_token missing_subject=true")
         raise EditoBearerAuthError("Invalid bearer token.", reason="invalid_bearer_token")
     username = claims.get("preferred_username")
-    logger.info(
+    logger.debug(
         "EDITO bearer token accepted subject_present=%s username_present=%s",
         bool(subject),
         isinstance(username, str) and bool(username),
@@ -361,7 +361,7 @@ async def _post_token_grant(client_id: str, scope: str, fields: dict[str, str]) 
     """POST one OAuth grant to the shared token endpoint; return its JSON."""
     data = {"client_id": client_id, "scope": scope, **fields}
     url = _token_url()
-    logger.info(
+    logger.debug(
         "Requesting EDITO token grant_type=%s auth_url=%s client_id=%s",
         fields["grant_type"],
         url,
@@ -392,7 +392,7 @@ async def _post_token_grant(client_id: str, scope: str, fields: dict[str, str]) 
             ) from exc
 
         payload = _json_object(response)
-        logger.info(
+        logger.debug(
             "EDITO token exchange succeeded grant_type=%s client_id=%s access_token=%s",
             fields["grant_type"],
             client_id,

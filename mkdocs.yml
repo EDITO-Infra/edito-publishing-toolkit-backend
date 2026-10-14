@@ -23,6 +23,7 @@ nav:
       - Remove STAC: features/remove-stac.md
       - Publication jobs: features/publication-jobs.md
       - Upload to S3: features/upload-s3.md
+      - Monitoring: features/monitoring.md
 
 theme:
   name: material

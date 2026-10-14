@@ -42,7 +42,7 @@ Do you have a feature you would like to see added to EPT?
 
 ## Versioning
 
-- v1.0.0
+- v1.0.1
 
 ## License
 

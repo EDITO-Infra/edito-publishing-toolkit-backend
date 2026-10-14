@@ -1,6 +1,6 @@
 [project]
 name = "edito-publishing-toolkit"
-version = "1.0.0"
+version = "1.0.1"
 description = "EDITO Publishing Toolkit for data and metadata transformation"
 authors = [
     {name = "samuelfooks"},
