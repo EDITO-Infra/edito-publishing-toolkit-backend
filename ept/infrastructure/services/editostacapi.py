@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import os
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -62,6 +63,11 @@ def resolve_edito_stac_api_url() -> str:
     return configured.strip().strip("\"'").rstrip("/")
 
 
+def collection_href(collection_id: str) -> str:
+    """Canonical EDITO STAC API URL of the collection."""
+    return f"{resolve_edito_stac_api_url()}/collections/{quote(collection_id, safe='')}"
+
+
 def resolve_edito_stac_openapi_url() -> str:
     """Return the service-description URL for the configured EDITO STAC API."""
     return f"{resolve_edito_stac_api_url()}/api"
@@ -74,7 +80,7 @@ class EditoStacApiClient:
         self._client = client
         self._edito_stac_api_url = edito_stac_api_url
 
-    async def get_json(self, path: str, *, access_token: str) -> Any:
+    async def get_json(self, path: str, *, access_token: str | None = None) -> Any:
         """GET one endpoint path and return the parsed payload."""
         base_url = (
             self._edito_stac_api_url.rstrip("/")
@@ -82,10 +88,9 @@ class EditoStacApiClient:
             else resolve_edito_stac_api_url()
         )
         url = f"{base_url}/{path.lstrip('/')}"
-        headers = {
-            "Accept": "application/json",
-            "Authorization": f"Bearer {access_token}",
-        }
+        headers = {"Accept": "application/json"}
+        if access_token:
+            headers["Authorization"] = f"Bearer {access_token}"
         logger.debug(
             "Requesting EDITO STAC API url=%s token=%s", url, token_diagnostic(access_token)
         )

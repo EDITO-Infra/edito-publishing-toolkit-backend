@@ -50,6 +50,8 @@ The public request accepts only `catalog_id` — the ID of the catalog to remove
 
 ## Response
 
+Responds `202 Accepted`:
+
 ```json
 {
   "job_id": "8d7d5a93-ff52-4a8e-9eb6-0d76d874b670",

@@ -294,6 +294,10 @@ def validate_bearer_token(token: str) -> EditoBearerAuth:
             signing_key.key,
             algorithms=["RS256", "RS512"],
             issuer=issuer,
+            # Keycloak stamps `iat` with its own clock, which can be sub-second
+            # ahead of EPT's — a freshly minted token would otherwise be
+            # rejected as immature on the call that follows /v1/auth.
+            leeway=10,
             options={
                 "require":
                     [

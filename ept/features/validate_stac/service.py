@@ -28,6 +28,7 @@ import httpx
 import logging
 
 from ept.infrastructure.formats.stac import StacObjectType
+from ept.infrastructure.services.editostacapi import resolve_edito_stac_api_url
 from ept.infrastructure.utils.urlguard import UnsafeUrlError
 
 from .validation import (
@@ -54,9 +55,21 @@ __all__ = ["StacFetchError", "StacVersionError", "validate_stac", "flatten_resul
 
 logger = logging.getLogger(__name__)
 
-MAX_OBJECTS = 50000  # number of objects to fetch before stopping (overridable in feature params)
+MAX_OBJECTS = 50000  # hard traversal cap; per-request limit is min(max_objects (default 5000), this)
 MAX_CONCURRENCY = 20  # concurrent HTTP requests during BFS traversal
 FETCH_TIMEOUT_SECONDS = 30  # per-request HTTP timeout for fetching STAC objects
+
+
+def _is_edito_stac_url(url) -> bool:
+    """True when the URL points at the configured EDITO STAC API.
+
+    Only those URLs need the caller's bearer token; public sources
+    (e.g. S3-hosted catalogs) reject bearer tokens, so it is never
+    attached anywhere else.
+    """
+    base = resolve_edito_stac_api_url()
+    normalized = str(url).rstrip("/")
+    return normalized == base or normalized.startswith(f"{base}/")
 
 
 # ─── Public entry point ────────────────────────────────────────────────────
@@ -83,16 +96,21 @@ async def validate_stac(
 
     Args:
         request: Validation request with URL, depth, flags.
-        access_token: Bearer token for protected STAC catalogs.
+        access_token: Caller's bearer token; attached only when ``stac_url``
+            targets the configured EDITO STAC API — all other sources are
+            fetched anonymously (public sources reject bearer tokens).
         http_client: Optional pre-configured async HTTP client. If omitted,
             a new one is created and closed after the run.
     """
+    # Token-attachment policy lives here so every caller (sync route, job
+    # runner) gets identical behavior without duplicating the rule.
+    token = access_token if access_token and _is_edito_stac_url(request.stac_url) else None
     owns_client = http_client is None
     if owns_client:
         http_client = httpx.AsyncClient(timeout=FETCH_TIMEOUT_SECONDS)
 
     try:
-        return await _validate(request, access_token, http_client)
+        return await _validate(request, token, http_client)
     finally:
         if owns_client:
             await http_client.aclose()
@@ -230,9 +248,15 @@ async def _validate(
                 parent.children.append(nodes_by_url[item.url])
 
         # ── Batch summary ─────────────────────────────────────
+        # DEBUG when clean: a big catalog runs hundreds of batches, so INFO
+        # here floods the monitoring store; failures surface via the
+        # per-object VALIDATE FAILED (WARNING) lines and the run summary.
         valid_count = sum(1 for n in batch_nodes.values() if n.object_is_valid)
         invalid_count = len(batch_nodes) - valid_count
-        logger.info(
+        log_batch = (
+            logger.warning if invalid_count else logger.debug
+        )
+        log_batch(
             "BATCH %d validated: %d valid, %d invalid (%d objects)",
             batch_index,
             valid_count,

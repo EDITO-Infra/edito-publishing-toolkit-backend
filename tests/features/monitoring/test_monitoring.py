@@ -12,6 +12,7 @@ import pytest
 from ept.api.dependencies import require_edito_bearer_auth
 from ept.api.main import app
 from ept.infrastructure.services.edito_auth import EditoBearerAuth
+from ept.infrastructure.utils import monitoring as monitoring_module
 from ept.infrastructure.utils.monitoring import get_log_buffer
 from tests.conftest import feature_is_active, integration, live_edito_credentials, live_edito_token_pair, unit
 
@@ -38,8 +39,10 @@ def _record(
 
 
 @pytest.fixture
-def buffered_events() -> Iterator[None]:
-    """Seed the process-wide buffer with known events and clean up afterwards."""
+def buffered_events(monkeypatch, tmp_path) -> Iterator[None]:
+    """Seed an isolated log store with known events and clean up afterwards."""
+    monkeypatch.setenv("MONITORING_DB_PATH", str(tmp_path / "monitoring.db"))
+    monkeypatch.setattr(monitoring_module, "_buffer", None)
     buffer = get_log_buffer()
     buffer.clear()
     buffer.handle(_record("upload finished", created=1000.0, event="convert", size=42))

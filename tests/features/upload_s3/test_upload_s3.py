@@ -16,7 +16,7 @@ from ept.infrastructure.services.edito_auth import (
     S3ConnectionParameters,
     exchange_s3_credentials,
 )
-from ept.infrastructure.storage.s3 import put_to_s3, resolve_s3_storage_options
+from ept.infrastructure.storage.s3 import full_s3_url, put_to_s3, resolve_s3_storage_options
 from tests.conftest import integration, unit
 
 
@@ -26,7 +26,7 @@ def test_upload_s3_uses_bucket_relative_target_and_connection_parameters(monkeyp
 
     def fake_upload(*args, **kwargs):
         calls.append((args, kwargs))
-        return ["s3://bucket/data/input.nc"]
+        return ["https://s3.example.test/bucket/data/input.nc"]
 
     monkeypatch.setattr("ept.features.upload_s3.service.upload_to_s3", fake_upload)
 
@@ -41,8 +41,8 @@ def test_upload_s3_uses_bucket_relative_target_and_connection_parameters(monkeyp
 
     assert response.status == "completed"
     assert response.source == "/data/input.nc"
-    assert response.target_uri == "s3://bucket/data/input.nc"
-    assert response.uploaded == ["s3://bucket/data/input.nc"]
+    assert response.target_uri == "https://s3.example.test/bucket/data/input.nc"
+    assert response.uploaded == ["https://s3.example.test/bucket/data/input.nc"]
     assert calls == [
         (
             ("/data/input.nc", "s3://bucket/data/input.nc"),
@@ -61,7 +61,7 @@ def test_upload_s3_derives_name_from_url(monkeypatch):
 
     def fake_upload(*args, **_kwargs):
         calls.append(args)
-        return ["s3://bucket/imports/input.nc"]
+        return ["https://s3.example.test/bucket/imports/input.nc"]
 
     monkeypatch.setattr("ept.features.upload_s3.service.upload_to_s3", fake_upload)
 
@@ -74,7 +74,7 @@ def test_upload_s3_derives_name_from_url(monkeypatch):
         )
     )
 
-    assert response.target_uri == "s3://bucket/imports/input.nc"
+    assert response.target_uri == "https://s3.example.test/bucket/imports/input.nc"
     assert calls == [
         (
             "https://data.example.test/files/input.nc?download=true",
@@ -172,7 +172,7 @@ def test_upload_s3_defaults_to_personal_oidc_bucket(monkeypatch):
     )
 
     assert response.bucket == "oidc-alice"
-    assert response.target_uri == "s3://oidc-alice/my-uploads/input.nc"
+    assert response.target_uri == "https://s3.example.test/oidc-alice/my-uploads/input.nc"
 
 
 @unit
@@ -193,7 +193,7 @@ def test_upload_s3_explicit_bucket_beats_default(monkeypatch):
     )
 
     assert response.bucket == "oidc-myproject"
-    assert response.target_uri == "s3://oidc-myproject/my-uploads/input.nc"
+    assert response.target_uri == "https://s3.example.test/oidc-myproject/my-uploads/input.nc"
 
 
 @unit
@@ -268,7 +268,8 @@ def test_upload_connection_rejects_sts_metadata():
 @integration
 def test_upload_s3_live_uploads_isolated_temp_file(tmp_path):
     bucket, target = _require_live_s3_target()
-    target_uri = f"s3://{bucket}/{target}/upload-source.txt"
+    key = f"{bucket}/{target}/upload-source.txt"
+    target_uri = f"s3://{key}"
     source = tmp_path / "upload-source.txt"
     source.write_text("upload integration test\n", encoding="utf-8")
 
@@ -284,8 +285,8 @@ def test_upload_s3_live_uploads_isolated_temp_file(tmp_path):
 
     assert response.status == "completed"
     assert response.source == str(source)
-    assert response.target_uri == target_uri
-    assert response.uploaded == [target_uri]
+    assert response.target_uri == full_s3_url(_live_s3_connection().endpoint_url, key)
+    assert response.uploaded == [response.target_uri]
 
 
 @unit
@@ -294,7 +295,7 @@ def test_upload_s3_output_name_overrides_url_derived_name(monkeypatch):
 
     def fake_upload(*args, **_kwargs):
         calls.append(args)
-        return ["s3://bucket/imports/myxml.xml"]
+        return ["https://s3.example.test/bucket/imports/myxml.xml"]
 
     monkeypatch.setattr("ept.features.upload_s3.service.upload_to_s3", fake_upload)
 
@@ -311,7 +312,7 @@ def test_upload_s3_output_name_overrides_url_derived_name(monkeypatch):
         )
     )
 
-    assert response.target_uri == "s3://bucket/imports/myxml.xml"
+    assert response.target_uri == "https://s3.example.test/bucket/imports/myxml.xml"
     assert calls == [
         (
             "https://emodnet.ec.europa.eu/geonetwork/srv/api/records/"

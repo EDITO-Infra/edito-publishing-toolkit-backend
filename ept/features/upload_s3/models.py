@@ -28,7 +28,7 @@ class UploadS3Request(S3ConnectionParameters):
         description=(
             "Destination S3 bucket name. Defaults to your personal EDITO bucket "
             "`oidc-<username>` derived from your bearer token. Other buckets your "
-            "account can access — e.g. project buckets like `oidc-<projectid>` — "
+            "account can access — e.g. project buckets like `project-<projectid>` — "
             "are equally valid; browse them at "
             "https://datalab.dive.edito.eu/file-explorer. Must be a bucket name "
             "without s3:// or an object key."

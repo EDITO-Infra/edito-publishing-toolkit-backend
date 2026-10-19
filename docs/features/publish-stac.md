@@ -55,6 +55,8 @@ The public request accepts only `remote_stac_url` and `catalog_id`:
 
 ## Response
 
+Responds `202 Accepted`:
+
 ```json
 {
   "job_id": "8d7d5a93-ff52-4a8e-9eb6-0d76d874b670",
@@ -62,7 +64,7 @@ The public request accepts only `remote_stac_url` and `catalog_id`:
 }
 ```
 
-Use the returned `job_id` with  [publication-jobs](./publication-jobs.md)
+Use the returned `job_id` with [publication-jobs](./publication-jobs.md).
 
 ## Good to know
 

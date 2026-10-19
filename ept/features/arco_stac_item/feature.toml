@@ -1,0 +1,26 @@
+[feature]
+key = "arco.stac-item"
+release = "1.0.0"
+title = "ARCO STAC Item"
+description = "Read a STAC Item JSON (local, s3://, or HTTP(S) URL), convert its data assets to ARCO formats, add the converted assets to the Item, and write the updated Item JSON to S3. NetCDF assets are auto-converted with nc-to-zarr, .gdb/.gdb.zip assets with gdb-to-parquet; ambiguous assets (e.g. plain .zip archives) are mapped explicitly via a conversions table (asset key, href file name, or href path fragment to nc-to-zarr, gdb-to-parquet, shp-to-parquet, or upload). Runnable synchronously and as a job-runner operation."
+depends_on = ["transform.nc_to_zarr", "transform.gdb_to_parquet", "storage.s3_upload"]
+
+[package]
+requires = ["fastapi", "pydantic", "httpx", "fsspec", "s3fs", "xarray", "zarr"]
+
+[entrypoints]
+python = ["ept.features.arco_stac_item.service:arco_stac_item"]
+
+[api]
+router = "ept.features.arco_stac_item.routes:router"
+
+[[api.routes]]
+method = "POST"
+path = "/v1/arco/stac-item"
+summary = "ARCO-ify the data assets of a STAC Item"
+request_model = "ept.features.arco_stac_item.models:ArcoStacItemRequest"
+response_model = "ept.features.arco_stac_item.models:ArcoStacItemResponse"
+
+[tests]
+unit = "tests/features/arco_stac_item/test_arco_stac_item.py"
+integration = "tests/features/arco_stac_item/test_arco_stac_item_api.py"

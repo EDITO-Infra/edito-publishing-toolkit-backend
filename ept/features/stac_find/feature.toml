@@ -1,0 +1,55 @@
+[feature]
+key = "stac.find"
+release = "1.1.0"
+title = "STAC Find"
+description = "Simple find/scan primitives over the EDITO STAC API: items (GET /search Item Search), collections, catalogs, assets, and properties. Deliberately not named 'search': STAC API reserves GET|POST /search for conformant Item Search, and these scans are not conformant to it."
+depends_on = []
+
+[package]
+requires = ["fastapi", "httpx", "pydantic-settings"]
+
+[entrypoints]
+python = ["ept.features.stac_find.service:find_item"]
+
+[api]
+router = "ept.features.stac_find.routes:router"
+
+[[api.routes]]
+method = "GET"
+path = "/v1/stac/find/items"
+summary = "Find items (STAC Item Search)"
+response_model = "ept.features.stac_find.models:FindItemsResponse"
+
+[[api.routes]]
+method = "GET"
+path = "/v1/stac/find/items/scientific"
+summary = "Find items by scientific metadata (DOI, citation)"
+response_model = "ept.features.stac_find.models:FindItemsResponse"
+
+[[api.routes]]
+method = "GET"
+path = "/v1/stac/find/collections"
+summary = "Find collections"
+response_model = "ept.features.stac_find.models:FindCollectionsResponse"
+
+[[api.routes]]
+method = "GET"
+path = "/v1/stac/find/catalogs"
+summary = "Find catalogs in the STAC catalog tree"
+response_model = "ept.features.stac_find.models:FindCatalogsResponse"
+
+[[api.routes]]
+method = "GET"
+path = "/v1/stac/find/assets"
+summary = "Find items by asset"
+response_model = "ept.features.stac_find.models:FindItemsResponse"
+
+[[api.routes]]
+method = "GET"
+path = "/v1/stac/find/properties"
+summary = "Find items by properties"
+response_model = "ept.features.stac_find.models:FindPropertiesResponse"
+
+[tests]
+unit = "tests/features/stac_find/test_stac_find.py"
+integration = "tests/features/stac_find/test_stac_find.py"

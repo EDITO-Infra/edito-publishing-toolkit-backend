@@ -1,0 +1,26 @@
+[feature]
+key = "metadata.zarr_to_stac_item"
+release = "1.1.0"
+title = "Zarr metadata to STAC Item"
+description = "Build a STAC Item from the metadata of a Zarr store (v2 or v3; local, S3, or HTTP): dimensions, coordinates, data variables, and CF attributes, with spatial and temporal extents derived from coordinates or CF global attributes and overridable per request. The item is written to a local path or S3 key. The collection is optional: only an explicit collection_id attaches the item to an EDITO STAC collection — otherwise the item is standalone and the response carries a suggested_collection_id (a matching EDITO collection, or a kebab-case CF standard_name slug) the user can attach to their own collection later."
+depends_on = []
+
+[package]
+requires = ["xarray", "zarr", "pystac", "pandas"]
+
+[entrypoints]
+python = ["ept.features.zarr_to_stac.service:zarr_to_stac_item"]
+
+[api]
+router = "ept.features.zarr_to_stac.routes:router"
+
+[[api.routes]]
+method = "POST"
+path = "/v1/metadata/zarr/to-stac-item"
+summary = "Create a STAC Item from Zarr metadata"
+request_model = "ept.features.zarr_to_stac.models:ZarrToStacItemRequest"
+response_model = "ept.features.zarr_to_stac.models:ZarrToStacItemResponse"
+
+[tests]
+unit = "tests/features/zarr_to_stac/test_zarr_metadata.py"
+integration = "tests/features/zarr_to_stac/test_zarr_to_stac.py"

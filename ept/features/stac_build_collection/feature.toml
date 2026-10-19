@@ -1,0 +1,26 @@
+[feature]
+key = "stac.build_collection"
+release = "1.1.0"
+title = "STAC Collection Builder"
+description = "Build a STAC Collection from individual fields, a complete JSON object, or an existing object fetched by URL (provided fields override the base). Preview the JSON or export it to a local folder or S3; links are the standard STAC links array with plain hrefs so assemble-stac can stitch trees later."
+depends_on = []
+
+[package]
+requires = ["fastapi", "httpx", "pystac", "pydantic-settings", "fsspec", "s3fs"]
+
+[entrypoints]
+python = ["ept.features.stac_build_collection.service:build_collection"]
+
+[api]
+router = "ept.features.stac_build_collection.routes:router"
+
+[[api.routes]]
+method = "POST"
+path = "/v1/stac/build/collection"
+summary = "Build a STAC Collection"
+request_model = "ept.features.stac_build_collection.models:BuildCollectionRequest"
+response_model = "ept.features.stac_build_collection.models:BuildCollectionResponse"
+
+[tests]
+unit = "tests/features/stac_build_collection/test_build_collection.py"
+integration = "tests/features/stac_build_collection/test_build_collection_api.py"

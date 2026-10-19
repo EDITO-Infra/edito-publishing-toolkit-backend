@@ -223,7 +223,7 @@ def test_get_my_catalogs_openapi_contract():
 
     assert operation["operationId"] == "getMyCatalogsV1"
     assert operation["summary"] == "Get my catalogs"
-    assert operation["tags"] == ["STAC Catalogs"]
+    assert operation["tags"] == ["Publish STAC", "catalogs"]
     assert operation["security"] == [{"HTTPBearer": []}]
     assert "requestBody" not in operation
     assert operation["responses"]["200"]["content"]["application/json"]["schema"] == {

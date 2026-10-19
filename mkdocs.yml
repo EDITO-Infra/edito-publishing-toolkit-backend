@@ -7,23 +7,60 @@ edit_uri: edit/main/docs/
 docs_dir: docs
 site_dir: site
 
+# Marp deck assets stay repo-only (render locally — see docs/tutorials/README.md);
+# images are served: the walkthrough pages embed them.
+exclude_docs: |
+  *.marp.md
+  tutorials/README.md
+  tutorials/ept-handson-tutorial/ept-handson-tutorial*
+  tutorials/ept-handson-tutorial/edito2.css
+  **/__pycache__/
+
 nav:
   - Home: index.md
   - Install: install.md
   - Usage: usage.md
+  - Tutorials:
+      - End-to-end publishing: tutorials/end-to-end-publishing.md
+      - Hands-on tutorial: tutorials/ept-handson-tutorial/index.md
+      - Walkthrough 1 — Transform data: tutorials/ept-handson-tutorial/walkthroughs/walkthrough-1-transform.md
+      - Walkthrough 2 — Items from your data: tutorials/ept-handson-tutorial/walkthroughs/walkthrough-2-data-items.md
+      - Walkthrough 3 — Items from metadata: tutorials/ept-handson-tutorial/walkthroughs/walkthrough-3-metadata-items.md
+      - Walkthrough 4 — ARCO: tutorials/ept-handson-tutorial/walkthroughs/walkthrough-4-arco.md
+      - Walkthrough 5 — Collections: tutorials/ept-handson-tutorial/walkthroughs/walkthrough-5-collections.md
+      - Walkthrough 6 — Catalog: tutorials/ept-handson-tutorial/walkthroughs/walkthrough-6-catalog.md
+      - Walkthrough 7 — Publish: tutorials/ept-handson-tutorial/walkthroughs/walkthrough-7-publish.md
   - Docker usage: docker-usage.md
   - Authentication: auth.md
   - S3 storage: s3.md
   - API: api.md
   - Features:
       - Overview: features/index.md
+      - Monitoring: features/monitoring.md
+      - Upload to S3: features/upload-s3.md
+      - List your S3 buckets: features/list-s3-buckets.md
+      - Transform NetCDF to Zarr: features/nc-to-zarr.md
+      - Convert GDB to GeoParquet: features/gdb-to-parquet.md
+      - Convert Shapefile to GeoParquet: features/shp-to-parquet.md
+      - ISO to STAC Item: features/iso-to-stac-item.md
+      - NetCDF to STAC Item: features/netcdf-to-stac-item.md
+      - Zarr to STAC Item: features/zarr-to-stac-item.md
+      - ARCO STAC Item: features/arco-stac-item.md
+      - EPT job runner: features/job-runner.md
       - Validate STAC: features/validate-stac.md
+      - STAC Find: features/stac-find.md
+      - STAC Fetch: features/stac-get.md
+      - STAC Catalog Builder: features/stac-build-catalog.md
+      - STAC Collection Builder: features/stac-build-collection.md
+      - STAC Item Builder: features/stac-build-item.md
+      - Suggest STAC Catalog: features/stac-suggest-catalog.md
+      - Suggest STAC Collection: features/stac-suggest-collection.md
+      - STAC Assemble: features/assemble-stac.md
       - Get my catalogs: features/get-my-catalogs.md
       - Publish STAC: features/publish-stac.md
       - Remove STAC: features/remove-stac.md
       - Publication jobs: features/publication-jobs.md
-      - Upload to S3: features/upload-s3.md
-      - Monitoring: features/monitoring.md
+
 
 theme:
   name: material
@@ -39,6 +76,10 @@ markdown_extensions:
   - md_in_html
   - pymdownx.highlight:
       anchor_linenums: true
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - toc:
       permalink: true

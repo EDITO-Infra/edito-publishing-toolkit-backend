@@ -15,6 +15,10 @@ class ApiIndex(BaseModel):
     service: str = Field(description="Human-readable service name.")
     docs: str = Field(description="Relative URL for the interactive OpenAPI documentation.")
     openapi: str = Field(description="Relative URL for the OpenAPI schema document.")
+    handbook: str | None = Field(
+        default=None,
+        description="Relative URL for the version-matched handbook, when served by this instance.",
+    )
 
 
 def register_service_routes(app: FastAPI) -> None:
@@ -33,11 +37,12 @@ def register_service_routes(app: FastAPI) -> None:
         operation_id="getApiIndexV1",
     )
     async def api_root() -> ApiIndex:
-        """Return links to the API docs and OpenAPI schema."""
+        """Return links to the API docs, OpenAPI schema, and handbook when available."""
         return ApiIndex(
             service="EDITO Publishing Toolkit API",
             docs="/docs",
             openapi="/openapi.json",
+            handbook=getattr(app.state, "handbook_url", None),
         )
 
     @app.get("/healthz", include_in_schema=False)

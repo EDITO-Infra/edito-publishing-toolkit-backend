@@ -9,7 +9,7 @@ from ept.infrastructure.services.editostacapi import EditoStacApiClient
 from .models import GetMyCatalogsResponse
 from .service import get_my_catalogs
 
-router = APIRouter(prefix="/v1/edito/stac", tags=["STAC Catalogs"])
+router = APIRouter(prefix="/v1/edito/stac", tags=["Publish STAC", "catalogs"])
 
 # Representative public responses only; runtime behavior is driven by the
 # service exceptions in ept.infrastructure.services.editostacapi.
@@ -40,7 +40,7 @@ EDITO_STAC_ERROR_RESPONSE_EXAMPLE = {
     description=(
         "Return the catalog IDs available to the authenticated user from "
         "EDITO STAC. Only IDs beginning with `projects/` are included. "
-        "Requires Authorization: Bearer <access_token>`."
+        "Requires `Authorization: Bearer <access_token>`."
     ),
     responses=problem_responses(
         upstream_backed=True,

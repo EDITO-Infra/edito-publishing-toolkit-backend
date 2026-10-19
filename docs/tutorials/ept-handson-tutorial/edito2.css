@@ -1,0 +1,249 @@
+/*
+ * @theme edito2
+ * EPT deck theme — EDITO2 PowerPoint template (v1.8) look & feel.
+ * Palette straight from EDITO2_PPT_Template_1.8.pptx theme1.xml:
+ *   navy #001D6C, blue #0043CE, sky #00BFFF, light blue #A6C8FF,
+ *   red #F0354B, purple #9C6EFF, amber #FFC107. Font: Century Gothic.
+ */
+
+@import 'default';
+
+:root {
+  --edito-navy: #001d6c;
+  --edito-blue: #0043ce;
+  --edito-sky: #00bfff;
+  --edito-lightblue: #a6c8ff;
+  --edito-red: #f0354b;
+  --edito-purple: #9c6eff;
+  --edito-amber: #ffc107;
+  --edito-bg: #ffffff;
+  --edito-tint: #eef4ff;
+  --edito-text: #10233f;
+  --edito-muted: #5a6b85;
+  --edito-border: rgba(0, 29, 108, 0.14);
+  --color: var(--edito-text);
+  --bg-color: var(--edito-bg);
+  --bold-color: var(--edito-navy);
+}
+
+section {
+  font-family: 'Century Gothic', 'CenturyGothic', 'Futura', 'Questrial',
+    'Trebuchet MS', 'Segoe UI', Arial, sans-serif;
+  background: var(--edito-bg);
+  color: var(--edito-text);
+  padding: 52px 64px;
+  font-size: 27px;
+}
+
+h1, h2, h3 { color: var(--edito-navy); font-weight: 700; }
+h1 {
+  font-size: 1.55em;
+  border-bottom: 3px solid var(--edito-sky);
+  padding-bottom: 10px;
+  margin-bottom: 28px;
+}
+h2 { font-size: 1.1em; color: var(--edito-blue); }
+h3 { font-size: 1em; color: var(--edito-blue); }
+
+strong { color: var(--edito-navy); }
+a { color: var(--edito-blue); }
+
+/* Code: dark navy blocks, sky accents */
+pre {
+  background: var(--edito-navy);
+  border-radius: 12px;
+  padding: 16px 20px;
+  border: none;
+}
+pre > code {
+  color: #eaf3ff;
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+}
+pre code.hljs { background: transparent; }
+
+/* Syntax tokens: marp's default highlight palette is tuned for light
+   backgrounds (dark green/red) — unreadable on navy, so remap here. */
+pre .hljs-comment, pre .hljs-quote { color: #8fa3c8; font-style: italic; }
+pre .hljs-keyword, pre .hljs-selector-tag, pre .hljs-literal, pre .hljs-doctag {
+  color: #00bfff;
+}
+pre .hljs-string, pre .hljs-regexp, pre .hljs-addition { color: #ffc107; }
+pre .hljs-number, pre .hljs-symbol, pre .hljs-bullet, pre .hljs-link {
+  color: #b794ff;
+}
+pre .hljs-attr, pre .hljs-attribute, pre .hljs-variable,
+pre .hljs-template-variable { color: #a6c8ff; }
+pre .hljs-title, pre .hljs-built_in, pre .hljs-type, pre .hljs-name,
+pre .hljs-section, pre .hljs-selector-id, pre .hljs-selector-class {
+  color: #7ee787;
+}
+pre .hljs-meta, pre .hljs-params, pre .hljs-punctuation, pre .hljs-operator {
+  color: #eaf3ff;
+}
+/* Tokens the navy remap above doesn't cover (f-string interpolation, inline
+   emphasis) would fall back to the default theme's dark, white-background
+   colors — unreadable on navy. */
+pre .hljs-subst, pre .hljs-property, pre .hljs-code, pre .hljs-formula,
+pre .hljs-emphasis, pre .hljs-strong {
+  color: #eaf3ff;
+}
+pre .hljs-deletion { color: #ff7b8a; }
+code {
+  color: var(--edito-blue);
+  background: var(--edito-tint);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+pre > code { background: transparent; padding: 0; }
+
+/* Tables: blue header row on white card */
+table {
+  background: #fff;
+  border: 1px solid var(--edito-border);
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 0.82em;
+}
+th {
+  background: var(--edito-blue);
+  color: #fff;
+  font-weight: 700;
+}
+td { border-color: var(--edito-border); }
+tr:nth-child(even) td { background: var(--edito-tint); }
+
+/* Blockquote: sky accent bar */
+blockquote {
+  border-left: 5px solid var(--edito-sky);
+  background: var(--edito-tint);
+  border-radius: 0 10px 10px 0;
+  padding: 8px 18px;
+  color: var(--edito-muted);
+}
+
+footer {
+  position: absolute;
+  left: 64px;
+  bottom: 26px;
+  right: 280px;
+  color: var(--edito-muted);
+  font-size: 0.5em;
+  letter-spacing: 0.02em;
+}
+section::after {
+  position: absolute;
+  right: 214px;
+  bottom: 26px;
+  color: var(--edito-muted);
+  font-size: 0.5em;
+}
+
+/* --- Brand footer: EDITO + VLIZ logos, bottom-right of every slide --- */
+section::before {
+  content: '';
+  position: absolute;
+  right: 44px;
+  bottom: 26px;
+  width: 150px;
+  height: 28px;
+  background: url('images/ept-footer-logos-dark.png') no-repeat right center / contain;
+}
+section.divider::before {
+  background-image: url('images/ept-footer-logos-light.png');
+}
+/* title slide already carries the full-size lockup */
+section.lead::before { content: none; }
+
+/* --- Title (lead) --- */
+section.lead {
+  text-align: center;
+  background: linear-gradient(150deg, var(--edito-navy) 0%, #00308f 55%, var(--edito-blue) 100%);
+  color: #ffffff;
+}
+section.lead h1 {
+  color: #ffffff;
+  border-bottom: none;
+  font-size: 2em;
+  margin-bottom: 16px;
+}
+section.lead h2, section.lead h3 { color: var(--edito-lightblue); }
+section.lead strong { color: var(--edito-sky); }
+section.lead a { color: var(--edito-sky); }
+section.lead footer,
+section.lead section::after { color: rgba(255, 255, 255, 0.65); }
+section.lead .lockup {
+  display: block;
+  margin: 0 auto 28px auto;
+  width: 430px;
+}
+
+/* --- Divider: navy section break --- */
+section.divider {
+  background: linear-gradient(150deg, var(--edito-navy) 0%, var(--edito-blue) 100%);
+  color: #ffffff;
+}
+section.divider h1 {
+  color: #ffffff;
+  border-bottom-color: var(--edito-sky);
+}
+section.divider h2, section.divider h3 { color: var(--edito-lightblue); }
+section.divider a { color: var(--edito-sky); }
+section.divider footer,
+section.divider section::after { color: rgba(255, 255, 255, 0.65); }
+
+/* --- Two columns --- */
+.columns { display: flex; gap: 36px; }
+.columns > div { flex: 1; }
+
+/* --- Card grid --- */
+.cardgrid { display: flex; gap: 20px; margin-top: 24px; }
+.cardgrid > div {
+  flex: 1;
+  background: var(--edito-tint);
+  border: 1px solid var(--edito-border);
+  border-top: 6px solid var(--edito-sky);
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+.cardgrid h3 { margin-top: 0; color: var(--edito-navy); }
+
+/* --- Scenario slides (numbered steps) --- */
+section.scenario {
+  border-top: 12px solid var(--edito-blue);
+}
+section.scenario .badge {
+  display: inline-block;
+  background: var(--edito-blue);
+  color: #fff;
+  border-radius: 999px;
+  padding: 2px 16px;
+  font-size: 0.5em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+section.scenario h1 { border-bottom-color: var(--edito-lightblue); }
+
+/* --- Highlight slides (red accent, key messages) --- */
+section.keypoint {
+  border-top: 12px solid var(--edito-red);
+}
+section.keypoint h1 { color: var(--edito-red); border-bottom-color: var(--edito-red); }
+section.keypoint strong { color: var(--edito-red); }
+
+/* --- Hint box --- */
+.hintbox {
+  background: #fff8e6;
+  border: 1px solid #f0d98c;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 0.85em;
+}
+
+/* --- Funding line (EU grant acknowledgement) --- */
+.funding {
+  font-size: 0.42em;
+  color: var(--edito-muted);
+  margin-top: 30px;
+}
+section.lead .funding { color: rgba(255, 255, 255, 0.55); }

@@ -165,7 +165,7 @@ def test_publish_stac_openapi_documents_body_auth_and_examples():
 
     assert operation["security"] == [{"HTTPBearer": []}]
     assert operation["operationId"] == "queueStacPublicationV1"
-    assert operation["tags"] == ["STAC Publication and Removal"]
+    assert operation["tags"] == ["Publish STAC", "publish"]
     assert operation["requestBody"]["required"] is True
     assert operation["requestBody"]["content"]["application/json"]["schema"] == {
         "$ref": "#/components/schemas/PublishStacRequest"

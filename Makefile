@@ -1,6 +1,6 @@
 # EDITO Publishing Toolkit Makefile
 
-.PHONY: help install test docs-build docs-serve api-start api-stop api-restart docker-deploy
+.PHONY: help install test docs-build docs-slides docs-serve api-start api-stop api-restart docker-deploy
 
 # Default target
 help:
@@ -9,7 +9,8 @@ help:
 	@echo "  install       - Install uv if missing and sync project dependencies"
 	@echo "  test          - Run tests"
 	@echo "  docs-build    - Build the documentation with strict validation"
-	@echo "  docs-serve    - Preview the documentation locally"
+	@echo "  docs-slides   - Render Marp slide decks (workshops) to HTML for the docs site"
+	docs-serve    - Preview the documentation locally
 	@echo "  api-start     - Start the API server"
 	@echo "  api-stop      - Stop the API server (Unix: needs pkill/lsof)"
 	@echo "  api-restart   - Restart the API server (Unix)"
@@ -30,6 +31,13 @@ test:
 
 docs-build:
 	uv run mkdocs build --strict
+
+# Marp decks are committed as HTML next to their source so the mkdocs site
+# picks them up; re-run this after editing any *.marp.md (needs Node 20+).
+docs-slides:
+	cd docs/tutorials/ept-handson-tutorial && \
+	npx -y @marp-team/marp-cli@latest ept-handson-tutorial.marp.md \
+		--theme edito2.css --html -o ept-handson-tutorial.html
 
 docs-serve:
 	uv run mkdocs serve --dev-addr 127.0.0.1:8001
