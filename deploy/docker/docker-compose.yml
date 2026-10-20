@@ -24,6 +24,7 @@ services:
       # Writable space for local_output exports: relative local targets (e.g.
       # "./workspace/catalog-1") resolve against /app, landing here.
       - ./workspace:/app/workspace
+      - ./data:/app/data
     command: uvicorn ept.api.main:app --host 0.0.0.0 --port 8000
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/healthz"]

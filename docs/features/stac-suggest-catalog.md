@@ -49,7 +49,7 @@ Id proposal: an explicit `id` always wins. With a base it is `<base id>-<slug>`;
     "links": []
   },
   "warnings": [
-    "id proposed from your username and title slug: 'myusername-north-sea-bathymetry' — it must be unique among your catalogs (GET /v1/edito/stac/mycatalogs); EDITO adds its infrastructure root at publish time",
+    "id proposed from your username and title slug: 'myusername-north-sea-bathymetry' — it must be unique among the project catalogs you own (GET /v1/edito/stac/mycatalogs); EDITO adds its infrastructure root at publish time",
     "2 child collection(s) noted: coll-a, coll-b",
     "links are empty: root and child links are wired by the STAC builder or assemble",
     "description fell back to title/id: set an explicit description in the builder form"

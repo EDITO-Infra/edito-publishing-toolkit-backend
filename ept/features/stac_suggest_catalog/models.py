@@ -28,9 +28,9 @@ class SuggestCatalogRequest(BaseModel):
       its ``item`` links). The catalog JSON is derived from those collections
       and the whole tree is exported into ``target`` (or ``local_output``):
       ``catalog.json`` at the root with relative child links, each collection
-      copied under ``collections/<id>/`` with its root/parent links re-pointed
-      at the catalog and its item copies re-linked — a complete, publishable,
-      self-contained tree.
+      copied under ``<id>/`` (its id, slugified when unsafe as a folder name)
+      with its root/parent links re-pointed at the catalog and its item copies
+      re-linked — a complete, publishable, self-contained tree.
 
     Catalog metadata is enriched from the collections in every mode: keywords
     are unioned and providers merged (deduplicated) from the collections.
@@ -67,9 +67,10 @@ class SuggestCatalogRequest(BaseModel):
             "subfolders each contain one self-contained Collection tree "
             "(collection.json plus item files), as exported by "
             "suggest/collection. Each collection is copied under "
-            "`<target>/collections/<id>/` with links re-pointed at the new "
-            "catalog. Mutually exclusive with `collections`; always exports, "
-            "so `target` (or `local_output`) is required."
+            "`<target>/<id>/` (id slugified when unsafe as a folder name) "
+            "with links re-pointed at the new catalog. Mutually exclusive "
+            "with `collections`; always exports, so `target` (or "
+            "`local_output`) is required."
         ),
     )
     base: dict[str, Any] | None = Field(
@@ -108,8 +109,8 @@ class SuggestCatalogRequest(BaseModel):
         default=None,
         description=(
             "Destination folder: an S3 prefix within `bucket`. `catalog.json` "
-            "is written at the root, each collection under `collections/<id>/`. "
-            "Required with `source_folder` (unless `local_output` is set)."
+            "is written at the root, each collection under `<id>/`. Required "
+            "with `source_folder` (unless `local_output` is set)."
         ),
     )
     local_output: LocalOutput = Field(
@@ -143,7 +144,24 @@ class SuggestCatalogRequest(BaseModel):
         default=None, description="Temporary S3 session token for s3:// sources/targets."
     )
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            # Mirrors validate_sources_and_export: at least one source, and the
+            # S3 connection triple is all-or-none.
+            "anyOf": [
+                {"required": ["collections"]},
+                {"required": ["collection_links"]},
+                {"required": ["source_folder"]},
+                {"required": ["base"]},
+            ],
+            "dependentRequired": {
+                "endpoint_url": ["access_key_id", "secret_access_key"],
+                "access_key_id": ["endpoint_url", "secret_access_key"],
+                "secret_access_key": ["endpoint_url", "access_key_id"],
+            },
+        },
+    )
 
     @field_validator("collections")
     @classmethod
@@ -277,15 +295,21 @@ class SuggestCatalogResponse(BaseModel):
         default=False, description="True when `source_folder` assemble mode ran and the tree was written."
     )
     catalog_uri: str | None = Field(
-        default=None, description="Full location of the written catalog.json (s3:// URI or local path)."
+        default=None,
+        description="Full location of the written catalog.json: a full https:// URL when "
+        "`endpoint_url` is known (request value or S3_ENDPOINT_URL), an s3:// URI otherwise, "
+        "or a local path for `local_output`.",
     )
     collection_uris: list[str] = Field(
         default_factory=list,
-        description="Full locations of the copied collection.json files, one per source collection.",
+        description="Full locations of the copied collection.json files, one per source collection: "
+        "full https:// URLs when `endpoint_url` is known, s3:// URIs otherwise, or local paths "
+        "for `local_output`.",
     )
     item_uris: list[str] = Field(
         default_factory=list,
-        description="Full locations of the copied (and re-linked) item files.",
+        description="Full locations of the copied (and re-linked) item files: full https:// URLs "
+        "when `endpoint_url` is known, s3:// URIs otherwise, or local paths for `local_output`.",
     )
 
     model_config = ConfigDict(extra="forbid")

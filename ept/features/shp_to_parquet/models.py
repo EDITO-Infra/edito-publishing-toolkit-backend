@@ -127,6 +127,14 @@ class ShpToParquetRequest(S3ConnectionParameters):
             )
         return self
 
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            # Mirrors validate_output_and_credentials: S3 output (target) or local_output.
+            "anyOf": [{"required": ["target"]}, {"required": ["local_output"]}],
+        },
+    )
+
 
 class ShpToParquetResponse(_OpenApiModel):
     """Result of converting shapefiles to GeoParquet."""

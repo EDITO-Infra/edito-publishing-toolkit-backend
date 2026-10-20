@@ -141,7 +141,11 @@ class AssembleStacRequest(S3ConnectionParameters):
             )
         return self
 
-    model_config = {"extra": "forbid"}
+    model_config = {
+        "extra": "forbid",
+        # Mirrors validate_output_and_credentials: S3 output (target) or local_output.
+        "json_schema_extra": {"anyOf": [{"required": ["target"]}, {"required": ["local_output"]}]},
+    }
 
 
 class AssembleStacObject(BaseModel):

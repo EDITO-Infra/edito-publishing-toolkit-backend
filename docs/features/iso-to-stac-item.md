@@ -84,7 +84,7 @@ The record must contain a geographic bounding box and usable temporal informatio
 | `target` | Destination folder or prefix inside the bucket, such as `my-metadata`. Do not include `s3://bucket` — EPT appends the file name `<item_id>.json` automatically. Required for the standard S3 output; pass `null` only when `local_output` is used instead. |
 | `bucket` | Optional. Defaults to your personal EDITO bucket `oidc-<username>`, derived from your bearer token. Ignored when `local_output` is set. |
 | `local_output` | Optional override: directory on the EPT service filesystem to write the Item JSON into instead of S3. When set, `target` must be `null`; `bucket` is ignored. |
-| `item_id` | Optional override for the STAC Item id; defaults to the ISO `fileIdentifier`. Also names the output file. |
+| `item_id` | Optional override for the STAC Item id. When omitted, the ISO `fileIdentifier` is used, namespaced with your username — `<username>-<fileIdentifier>`. Also names the output file. |
 | `collection_id` | Optional. Only set if you already know the collection the Item belongs to; EPT does not resolve or validate it. |
 | `overwrite` | Default `false`; an existing output file causes the operation to fail (HTTP 409). |
 | `options` | Optional advanced mapping options: `csw_endpoint`, `csw_version`, `iso_schema`, `assets_config_path`, `stac_version`, include flags, and `extra_properties` merged into the Item properties. |

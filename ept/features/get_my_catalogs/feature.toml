@@ -2,7 +2,7 @@
 key = "catalogs.mine.get"
 release = "1.0.0"
 title = "Get my catalogs"
-description = "Return the catalog IDs under projects/ from the EDITO STAC API available to the authenticated user."
+description = "Return the IDs of the EDITO STAC project catalogs owned by the authenticated user."
 depends_on = []
 
 [package]

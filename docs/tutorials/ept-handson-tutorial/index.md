@@ -33,14 +33,22 @@ export S3_KEY=$(jq -r .s3_credentials.access_key_id auth.json)
 export S3_SECRET=$(jq -r .s3_credentials.secret_access_key auth.json)
 export S3_SESSION=$(jq -r .s3_credentials.session_token auth.json)
 export BUCKET=oidc-$(echo "$EDITO_USERNAME" | tr '[:upper:]' '[:lower:]')
-export WORKSPACE=$(echo "$EDITO_USERNAME" | tr '[:upper:]' '[:lower:]')-output
+[ -n "$PROJECTID" ] || { read -rp "Project short name (must be unique — ids derive from it): " PROJECTID; echo; }
+export PROJECTID=$(echo "$PROJECTID" | tr '[:upper:]' '[:lower:]')
+export WORKSPACE=$PROJECTID-output
 ```
 
 `auth.json` holds live tokens — keep it private (`rm auth.json` when done).
 
+Ids are prefixed with `PROJECTID` — your project's short name, which **must
+be unique** (ids and the workspace folder derive from it, so two projects
+must not share one). Files live under `WORKSPACE` = `<projectid>-output`.
+Note EPT's own auto-proposed ids are username-namespaced; in a shared
+project session, pass explicit `<projectid>-…` ids like the walkthroughs do.
+
 **With python** — every walkthrough snippet assumes `post`,
-`EPT`, `TOKEN`, `REFRESH_TOKEN`, `S3`, `BUCKET`, `WORKSPACE` and `MINIO` are
-defined:
+`EPT`, `TOKEN`, `REFRESH_TOKEN`, `S3`, `BUCKET`, `PROJECTID`, `WORKSPACE` and
+`MINIO` are defined:
 
 ```python
 import os, getpass, requests
@@ -56,7 +64,8 @@ S3 = {"endpoint_url": "https://minio.dive.edito.eu",
       "secret_access_key": auth["s3_credentials"]["secret_access_key"],
       "session_token": auth["s3_credentials"]["session_token"]}
 BUCKET = f"oidc-{user.lower()}"             # in a session or project, use its bucket
-WORKSPACE = f"{user.lower()}-output"
+PROJECTID = (os.environ.get("EPT_PROJECTID") or input("Project short name (must be unique): ")).lower()
+WORKSPACE = f"{PROJECTID}-output"
 MINIO = "https://minio.dive.edito.eu"
 
 def post(path, **body):
@@ -76,7 +85,7 @@ parallel sessions never collide.
 Seven short guides, one capability each — every output feeds the next step:
 
 1. [Transform data: NetCDF → Zarr, GDB zip → GeoParquet](walkthroughs/walkthrough-1-transform.md)
-2. [A data item: the NetCDF → a STAC Item](walkthroughs/walkthrough-2-data-items.md)
+2. [A data item: the NetCDF → a STAC Item, then make it yours](walkthroughs/walkthrough-2-data-items.md)
 3. [Items from metadata: ISO19139 records → STAC Items](walkthroughs/walkthrough-3-metadata-items.md)
 4. [ARCO items: convert Items' data assets in place](walkthroughs/walkthrough-4-arco.md)
 5. [Collections: suggest, export, make it yours](walkthroughs/walkthrough-5-collections.md)

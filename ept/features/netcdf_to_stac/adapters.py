@@ -24,7 +24,7 @@ from ept.infrastructure.formats.stac import (
 )
 from ept.infrastructure.formats.stac import item as stac_item
 from ept.infrastructure.services.editostacapi import collection_href
-from ept.infrastructure.storage.s3 import is_s3_uri, s3_url_to_fs
+from ept.infrastructure.storage.s3 import is_s3_uri, s3_url_to_fs, slugify
 
 from .models import NetcdfToStacItemRequest
 
@@ -55,11 +55,14 @@ def build_item(
     request: NetcdfToStacItemRequest,
     summary: DatasetSummary,
     collection_id: str | None,
+    item_id: str,
 ) -> dict[str, Any]:
     """Translate the NetCDF summary into a validated STAC Item dict.
 
-    ``collection_id`` is optional — standalone items are valid STAC and can
-    be attached to a collection later (e.g. an add_stac_item feature).
+    ``item_id`` is resolved by the service (explicit request id, or the
+    username-namespaced dataset identifier). ``collection_id`` is optional —
+    standalone items are valid STAC and can be attached to a collection
+    later (e.g. an add_stac_item feature).
     """
     bbox, instant, start_datetime, end_datetime = resolve_extents(request, summary)
     geometry, normalized_bbox = bbox_to_geometry(bbox)
@@ -72,7 +75,7 @@ def build_item(
 
     payload = stac_item.build_item(
         StacItemInput(
-            id=request.item_id or default_item_id(request.source_uri),
+            id=item_id,
             geometry=geometry,
             bbox=normalized_bbox,
             properties=properties,
@@ -182,6 +185,30 @@ def default_item_id(source_uri: str) -> str:
     if not name:
         raise ValueError(f"Cannot derive an item id from source: {source_uri}. Pass item_id.")
     return name
+
+
+# Dataset attributes carrying an identifier, in preference order — the same
+# fields the ISO transformer and the suggesters fall back to.
+ITEM_ID_ATTR_KEYS = ("id", "identifier", "title")
+
+
+def dataset_item_id(summary: DatasetSummary, source_uri: str) -> str:
+    """The dataset's own identifier (``id``/``identifier``/``title`` attr), else the source file name."""
+
+    for key in ITEM_ID_ATTR_KEYS:
+        value = summary.attrs.get(key)
+        if value and value.strip():
+            return value.strip()
+    return default_item_id(source_uri)
+
+
+def proposed_item_id(summary: DatasetSummary, source_uri: str, default_username: str | None) -> str:
+    """Default item id when the caller gives none: dataset identifier or source
+    name, namespaced with the username so ids stay unique per owner (same
+    scheme as the catalog/collection suggesters)."""
+
+    base = slugify(dataset_item_id(summary, source_uri), "item")
+    return f"{default_username}-{base}" if default_username else base
 
 
 def media_type(source_uri: str) -> str | None:

@@ -4,19 +4,19 @@ Publishing makes the validated `stac-final` tree discoverable by every EDITO
 user. Deliberate, not automatic — inspect first, then publish from the
 frontend or two API calls.
 
-## 1. Find your target catalog
+## 1. Pick your target catalog
 
-**In the frontend:** *Get my catalogs* (or `GET /v1/edito/stac/mycatalogs`)
-returns your catalog IDs:
+Use the `projects/…` id of the catalog you built in
+[walkthrough 6](walkthrough-6-catalog.md) — `$PROJECTID-catalog` exported to
+`stac-final/catalog.json`. That id is your target `catalog_id`.
+
+`GET /v1/edito/stac/mycatalogs` only lists the project catalogs **you own**;
+an empty response just means you have not created any yet:
 
 ```bash
 curl -s $EPT_URL/v1/edito/stac/mycatalogs \
   -H "Authorization: Bearer $TOKEN" | jq .
-# → ["projects/<your-catalog>", …]
 ```
-
-Pick the one to publish into — the `projects/…` id is your target
-`catalog_id`.
 
 ## 2. Publish
 

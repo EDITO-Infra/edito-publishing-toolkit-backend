@@ -20,7 +20,18 @@ def _example(value: object) -> dict:
 
 
 class BuildCatalogRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            # Mirrors _require_id_without_base: fields-mode needs an id unless a
+            # base object (stac_json/source_url) provides it.
+            "anyOf": [
+                {"required": ["id"]},
+                {"required": ["stac_json"]},
+                {"required": ["source_url"]},
+            ],
+        },
+    )
 
     # ── base object (edit mode) ─────────────────────────────────────────────
     stac_json: dict | None = Field(

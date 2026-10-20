@@ -6,8 +6,9 @@ override a base object; without a base the Item is built from the fields.
 ``target`` omitted → preview only; set → export to S3 (``bucket`` optional,
 defaults to the caller's personal bucket) or, with ``local_output`` (a
 directory on the EPT filesystem), to a local folder.
-Structured fields carry ``json_schema_extra={"example": ...}``
-so schema-driven frontend forms show JSON templates.
+Schema hints: ``json_schema_extra`` mirrors the model validators below with
+standard JSON Schema keywords (``anyOf``/``dependentRequired``) so schema-driven
+frontend forms can mark conditionally-required fields; keep in sync.
 """
 
 from __future__ import annotations
@@ -26,7 +27,21 @@ def _example(value: object) -> dict:
 
 
 class BuildItemRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+        json_schema_extra={
+            "anyOf": [
+                {"required": ["id"]},
+                {"required": ["stac_json"]},
+                {"required": ["source_url"]},
+            ],
+            "dependentRequired": {
+                "start_datetime": ["end_datetime"],
+                "end_datetime": ["start_datetime"],
+            },
+        },
+    )
 
     # ── base object (edit mode) ─────────────────────────────────────────────
     stac_json: dict | None = Field(

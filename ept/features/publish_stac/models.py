@@ -34,7 +34,8 @@ class PublishStacRequest(BaseModel):
         pattern=r"^projects/[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)*$",
         description=(
             "catalog ID to publish STAC into, starting with `projects/`. "
-            "To see your available catalogs, use the GET /v1/edito/stac/mycatalogs endpoint."
+            "GET /v1/edito/stac/mycatalogs lists the project catalogs you own; "
+            "an empty response means you have not created any yet."
         ),
         examples=[
             "projects/project-id",

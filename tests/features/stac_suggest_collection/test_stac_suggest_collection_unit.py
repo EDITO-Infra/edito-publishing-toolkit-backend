@@ -385,6 +385,49 @@ def test_item_links_with_target_export_collection_tree(monkeypatch, tmp_path):
 
 
 @unit
+def test_export_slugs_unsafe_item_ids(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "ept.features.stac_suggest_collection.service.fetch_json",
+        lambda uri: _item("My Item!", [0.0, 0.0, 1.0, 1.0], "2025-01-01T00:00:00Z"),
+    )
+    target = tmp_path / "obs"
+    payload = suggest_collection(
+        _request(
+            items=[],
+            item_links=["https://example.com/x.json"],
+            id="obs",
+            title="Obs",
+            local_output=str(target),
+        ),
+        default_username="oidc-user",
+    )
+
+    assert payload["item_uris"] == [str(target / "my-item" / "my-item.json")]
+    assert any("not safe as a file/folder name" in warning for warning in payload["warnings"])
+    item = json.loads((target / "my-item" / "my-item.json").read_text(encoding="utf-8"))
+    assert item["id"] == "My Item!"  # id unchanged; only the export name slugged
+    collection = json.loads((target / "collection.json").read_text(encoding="utf-8"))
+    assert {link["href"] for link in collection["links"] if link["rel"] == "item"} == {"./my-item/my-item.json"}
+
+
+@unit
+def test_export_rejects_slug_collisions(tmp_path):
+    with pytest.raises(ValueError, match="both map to the export name"):
+        suggest_collection(
+            _request(
+                items=[
+                    _item("a b", [0.0, 0.0, 1.0, 1.0], "2025-01-01T00:00:00Z"),
+                    _item("a-b", [2.0, -1.0, 3.0, 2.0], "2025-02-01T00:00:00Z"),
+                ],
+                id="obs",
+                title="Obs",
+                local_output=str(tmp_path / "obs"),
+            ),
+            default_username="oidc-user",
+        )
+
+
+@unit
 def test_s3_export_returns_full_https_urls_when_endpoint_is_known(monkeypatch):
     """s3:// export targets render as full https:// URLs when endpoint_url is given."""
 

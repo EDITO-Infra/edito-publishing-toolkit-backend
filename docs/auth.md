@@ -65,6 +65,10 @@ Pass these fields as connection parameters in requests that touch S3, such as [U
 
 The current implementation forwards the credentials to the configured EDITO Keycloak token endpoint and does not persist them.
 
+## Instance binding
+
+The first successful login binds the deployment to that EDITO user; any other user is rejected with `403 instance_bound`. To re-bind, delete `data/owner.state` and restart.
+
 ## Python (`httpx`)
 
 Keep credentials outside the source code, for example in environment variables:

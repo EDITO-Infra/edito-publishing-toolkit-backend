@@ -176,17 +176,17 @@ def test_assemble_exports_linked_tree(tmp_path):
     catalog = json.loads((final / "catalog.json").read_text())
     assert catalog["id"] == "oidc-user-north-sea-catalog"
     assert {link["href"] for link in catalog["links"] if link["rel"] == "child"} == {
-        "collections/one/collection.json",
-        "collections/two/collection.json",
+        "one/collection.json",
+        "two/collection.json",
     }
     assert {link["href"] for link in catalog["links"] if link["rel"] == "root"} == {"catalog.json"}
 
-    collection = json.loads((final / "collections" / "one" / "collection.json").read_text())
-    assert {link["href"] for link in collection["links"] if link["rel"] in {"root", "parent"}} == {"../../catalog.json"}
+    collection = json.loads((final / "one" / "collection.json").read_text())
+    assert {link["href"] for link in collection["links"] if link["rel"] in {"root", "parent"}} == {"../catalog.json"}
     assert {link["href"] for link in collection["links"] if link["rel"] == "item"} == {"item-one/item-one.json"}
 
-    item = json.loads((final / "collections" / "one" / "item-one" / "item-one.json").read_text())
-    assert {link["href"] for link in item["links"] if link["rel"] == "root"} == {"../../../catalog.json"}
+    item = json.loads((final / "one" / "item-one" / "item-one.json").read_text())
+    assert {link["href"] for link in item["links"] if link["rel"] == "root"} == {"../../catalog.json"}
     assert {link["href"] for link in item["links"] if link["rel"] in {"parent", "collection"}} == {"../collection.json"}
     assert item["collection"] == "one"
 
@@ -219,14 +219,14 @@ def test_collection_links_assemble_and_preview(tmp_path):
     assert payload["status"] == "completed"
     catalog = json.loads((final / "catalog.json").read_text())
     assert {link["href"] for link in catalog["links"] if link["rel"] == "child"} == {
-        "collections/one/collection.json",
-        "collections/two/collection.json",
+        "one/collection.json",
+        "two/collection.json",
     }
-    assert (final / "collections" / "one" / "item-one" / "item-one.json").exists()
-    assert (final / "collections" / "two" / "item-two" / "item-two.json").exists()
-    item = json.loads((final / "collections" / "two" / "item-two" / "item-two.json").read_text())
+    assert (final / "one" / "item-one" / "item-one.json").exists()
+    assert (final / "two" / "item-two" / "item-two.json").exists()
+    item = json.loads((final / "two" / "item-two" / "item-two.json").read_text())
     assert item["collection"] == "two"
-    assert {link["href"] for link in item["links"] if link["rel"] == "root"} == {"../../../catalog.json"}
+    assert {link["href"] for link in item["links"] if link["rel"] == "root"} == {"../../catalog.json"}
 
 
 @unit
@@ -244,8 +244,31 @@ def test_collection_links_skip_bad_links_with_warnings(tmp_path):
     assert payload["exported"] is True
     assert any("missing" in warning and "skipped" in warning for warning in payload["warnings"])
     final = tmp_path / "stac-final"
-    assert (final / "collections" / "one" / "collection.json").exists()
-    assert not (final / "collections" / "missing").exists()
+    assert (final / "one" / "collection.json").exists()
+    assert not (final / "missing").exists()
+
+
+@unit
+def test_assemble_slugifies_unsafe_collection_ids_and_rejects_collisions(tmp_path):
+    source = tmp_path / "collections"
+    _tree(str(source), ("My Coll!", ["item-one"]))
+    payload = suggest_catalog(
+        _request(collections=[], source_folder=str(source), local_output=str(tmp_path / "stac-final")),
+        default_username="oidc-user",
+    )
+    final = tmp_path / "stac-final"
+    assert (final / "my-coll" / "collection.json").exists()
+    catalog = json.loads((final / "catalog.json").read_text())
+    assert {link["href"] for link in catalog["links"] if link["rel"] == "child"} == {"my-coll/collection.json"}
+    assert any("not safe as a folder name" in warning for warning in payload["warnings"])
+
+    # Two ids that slugify to the same folder name are rejected.
+    _tree(str(source), ("my-coll", ["item-two"]))
+    with pytest.raises(ValueError, match="both map to the folder"):
+        suggest_catalog(
+            _request(collections=[], source_folder=str(source), local_output=str(tmp_path / "stac-final-2")),
+            default_username="oidc-user",
+        )
 
 
 @unit
@@ -273,7 +296,7 @@ def test_assemble_skips_stray_and_invalid_items_with_warnings(tmp_path):
     (source / "stray.json").write_text(json.dumps(stray))
 
     payload, final = _assemble(tmp_path)
-    assert not (final / "collections" / "one" / "item-one" / "broken.json").exists()
+    assert not (final / "one" / "item-one" / "broken.json").exists()
     assert not (final / "stray.json").exists()
     assert any("stray.json" in warning and "not inside any collection" in warning for warning in payload["warnings"])
 

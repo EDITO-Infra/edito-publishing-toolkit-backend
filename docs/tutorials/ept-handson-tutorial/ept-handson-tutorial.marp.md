@@ -358,8 +358,7 @@ result in the viewers as you go.
   (zero install), or `make api-start` / Docker locally
 - **Bucket** — leave `bucket` empty and EPT uses your personal
   `oidc-<username>` bucket; in a session or project, pass its bucket instead
-- **`<workspace>` folder** — everything you write lands under
-  `<username>-output/`, so parallel sessions never collide
+- Use a unique `<id>-output/` or `<username>-output/` for the base of your outputs onto the s3 storage
 - **When asked, make it public (demo only)** — EDITO datalab → Storage → your
   `<workspace>` folder → eyeball icon. Everything in it becomes
   **world-readable**; toggle it back off after the session.
@@ -437,8 +436,8 @@ The **iso-to-stac-item** feature can do this conversion if the ISO metadata is a
 ```json
 {
   "source_uri": "…/records/<uuid>/formatters/xml",
-  "item_id": "<workspace>-mangrove",
-  "collection_id": "<workspace>-habitats-and-heritage",
+  "item_id": "<projectid>-mangrove",
+  "collection_id": "<projectid>-habitats-and-heritage",
   "bucket": "<bucket>",
   "target": "<workspace>/items/mangrove"
 }
@@ -450,8 +449,8 @@ The **iso-to-stac-item** feature can do this conversion if the ISO metadata is a
 ```python
 resp = post("/v1/metadata/iso-to-stac-item",
             source_uri=RECORD_URL,
-            item_id=f"{WORKSPACE}-mangrove",
-            collection_id=f"{WORKSPACE}-habitats-and-heritage",
+            item_id=f"{PROJECTID}-mangrove",   # or omit: EPT proposes <username>-<fileIdentifier>
+            collection_id=f"{PROJECTID}-habitats-and-heritage",
             bucket=BUCKET,
             target=f"{WORKSPACE}/items/mangrove",
             overwrite=True, **S3)
@@ -500,10 +499,13 @@ the file's CF coordinates and attributes, no manual bbox or datetime:
 item = post("/v1/metadata/netcdf/to-stac-item",
             source_uri=DIN_NC_URL, bucket=BUCKET,
             target=f"{WORKSPACE}/items/din",
-            item_id=f"{WORKSPACE}-din",
-            collection_id=f"{WORKSPACE}-ocean-chemistry",
+            item_id=f"{PROJECTID}-din",   # or omit: EPT proposes <username>-<dataset id>
+            collection_id=f"{PROJECTID}-ocean-chemistry",
             overwrite=True, **S3)
 print(item["stac_item"]["bbox"])
+
+# make it yours later: post("/v1/stac/build/item", stac_json=item["stac_item"],
+#     id="your-id", target="…/your-id.json", overwrite=True, **S3)
 ```
 
 The Item's **data asset is the NetCDF itself** — that is what the ARCO step
@@ -553,7 +555,7 @@ One call converts an Item's data assets and re-exports the Item **in place**
 ```python
 post("/v1/arco/stac-item",
      source_uri=f"s3://{BUCKET}/{WORKSPACE}/items/din/"
-                f"{WORKSPACE}-din.json",
+                f"{PROJECTID}-din.json",
      bucket=BUCKET, assets_target=f"{WORKSPACE}/data/din",
      conversions={},           # the .nc asset is auto-detected
      overwrite=True, **S3)
@@ -599,10 +601,11 @@ a self-contained Collection: `collection.json` + item copies, links wired.
 
 ```python
 collection = post("/v1/stac/suggest/collection",
-     item_links=[f"{MINIO}/{BUCKET}/{WORKSPACE}/items/mangrove/{WORKSPACE}-mangrove.json",
-                 f"{MINIO}/{BUCKET}/{WORKSPACE}/items/heritage-shipwrecks/{WORKSPACE}-heritage-shipwrecks.json"],
-     id=f"{WORKSPACE}-habitats-and-heritage",   # matches the Items' collection property
-     bucket=BUCKET, target=f"{WORKSPACE}/collections/{WORKSPACE}-habitats-and-heritage",
+     item_links=[f"{MINIO}/{BUCKET}/{WORKSPACE}/items/mangrove/{PROJECTID}-mangrove.json",
+                 f"{MINIO}/{BUCKET}/{WORKSPACE}/items/heritage-shipwrecks/{PROJECTID}-heritage-shipwrecks.json"],
+     id=f"{PROJECTID}-habitats-and-heritage",   # or omit id → EPT proposes
+                                                # <username>-<title slug>
+     bucket=BUCKET, target=f"{WORKSPACE}/collections/{PROJECTID}-habitats-and-heritage",
      overwrite=True, **S3)
 ```
 
@@ -648,13 +651,14 @@ If you need to use your output STAC in another feature, or view it in
 
 **One call** — fetches the Collections (+ their items via item links), unions
 keywords/providers, exports `stac-final/catalog.json` with relative child
-links + `collections/<id>/` copies.
+links + `<id>/` copies (standard STAC layout).
 
 ```python
 catalog = post("/v1/stac/suggest/catalog",
      collection_links=[f"{MINIO}/{BUCKET}/{WORKSPACE}/collections/{cid}/collection.json"
-                       for cid in (f"{WORKSPACE}-habitats-and-heritage", f"{WORKSPACE}-ocean-chemistry")],
-     id=f"{WORKSPACE}-catalog", title="EPT hands-on tutorial",
+                       for cid in (f"{PROJECTID}-habitats-and-heritage", f"{PROJECTID}-ocean-chemistry")],
+     id=f"{PROJECTID}-catalog",   # or omit: EPT proposes <projectid>-<title slug>
+     title="EPT hands-on tutorial",
      description="Datasets converted with the EDITO Publishing Toolkit.",
      bucket=BUCKET, target=f"{WORKSPACE}/stac-final", overwrite=True, **S3)
 ```
@@ -671,12 +675,15 @@ Validate `stac-final/catalog.json` with `validate_children`, then publish it.
 
 # Make it discoverable
 
-`mycatalogs` → publish the validated `catalog.json` into your EDITO catalog.
+Publish the validated `catalog.json` into your EDITO catalog
+(`projects/…` id, e.g. `$PROJECTID-catalog`).
 
 - A **queued job** — `202` + job id, poll until it succeeds
 - Then it is live in the EDITO STAC API
 - Publish is deliberate: inspect the tree in the viewers first —
   `remove` undoes it
+- `mycatalogs` lists the project catalogs you own —
+  empty just means you have not created one yet
 
 ---
 

@@ -7,7 +7,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ept.infrastructure.services.edito_auth import S3ConnectionParameters
-from ept.infrastructure.storage.s3 import is_s3_uri, with_file_name
+from ept.infrastructure.storage.s3 import is_s3_uri, safe_export_name, with_file_name
 
 from .conversions import CONVERSIONS
 
@@ -45,10 +45,13 @@ class ArcoStacItemRequest(S3ConnectionParameters):
 
     - `item_target` — prefix for the updated Item JSON
       (`s3://<bucket>/<item_target>/<item_id>.json`; a value ending in
-      `.json` names the file itself). Omit it to replace the
-      Item at its source location in place (S3 sources only).
+      `.json` names the file itself). Omit it to replace the Item at its
+      source location in place (S3 sources only), or to write a link/local
+      source's updated Item to the default location
+      `s3://<bucket>/<item_id>.json` (bucket root).
     - `assets_target` — prefix for converted outputs. Defaults to
-      `item_target` when set, else to the source Item's folder.
+      `item_target` when set, else to the source Item's folder (S3
+      sources) or the bucket root.
     """
 
     # Redeclared optional: S3 credentials are only needed for S3 input/output;
@@ -146,21 +149,20 @@ class ArcoStacItemRequest(S3ConnectionParameters):
             )
         return value
 
-    def resolved_item_uri(self, source_uri: str, item_id: str) -> str:
-        """The s3:// URI the updated Item JSON is written to."""
+    def resolved_item_uri(self, source_uri: str, item_id: str, *, bucket: str) -> str:
+        """The s3:// URI the updated Item JSON is written to.
+
+        ``bucket`` is the resolved destination bucket (explicit or derived
+        from the bearer token). A link or local source with no
+        ``item_target`` falls back to the default output
+        ``s3://<bucket>/<item_id>.json`` at the bucket root.
+        """
+        name = safe_export_name(item_id, fallback="item")
         if self.item_target is None:
-            if not is_s3_uri(source_uri):
-                raise ValueError(
-                    "item_target is required to write the updated Item: in-place "
-                    "output is only possible for s3:// sources."
-                )
-            return source_uri
-        if not self.bucket:
-            raise ValueError(
-                "bucket is required with item_target: no bearer token or explicit "
-                "bucket to place the updated Item in."
-            )
-        return f"s3://{self.bucket}/{with_file_name(self.item_target, f'{item_id}.json')}"
+            if is_s3_uri(source_uri):
+                return source_uri
+            return f"s3://{bucket}/{name}.json"
+        return f"s3://{bucket}/{with_file_name(self.item_target, f'{name}.json')}"
 
 
 class ArcoConversionResult(_OpenApiModel):

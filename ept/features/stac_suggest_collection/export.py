@@ -4,8 +4,8 @@ Two export shapes:
 
 - ``export_tree`` — item_links/inline items plus a ``target``: the collection
   and its items are saved as a pystac tree (``collection.json`` plus
-  ``<item-id>/<item-id>.json``) into a local folder, or staged locally and
-  uploaded to an ``s3://bucket/prefix``.
+  ``<item-id>/<item-id>.json``, item ids slugified when unsafe) into a local
+  folder, or staged locally and uploaded to an ``s3://bucket/prefix``.
 - ``export_into_source_folder`` — a ``source_folder``: ``collection.json`` is
   written inside the folder and the item files are re-linked in place; nothing
   is moved or copied.
@@ -25,6 +25,7 @@ import pystac
 
 from ept.infrastructure.formats.stac.collection import validate_collection
 from ept.infrastructure.formats.stac.item import validate_item
+from ept.infrastructure.formats.stac.pystac_export import assign_safe_hrefs
 from ept.infrastructure.services.edito_auth import S3ConnectionParameters
 from ept.infrastructure.storage.s3 import (
     is_s3_uri,
@@ -93,9 +94,13 @@ def export_tree(
     *,
     overwrite: bool,
     s3: S3ConnectionParameters | None,
+    warnings: list[str],
 ) -> tuple[dict[str, Any], str, list[str]]:
     """Save the collection and its items as a pystac tree into ``folder``.
 
+    Standard self-contained layout: ``collection.json`` at the root, each
+    item under ``<item-id>/<item-id>.json`` (item ids slugified when unsafe,
+    with a warning; see :mod:`ept.infrastructure.formats.stac.pystac_export`).
     Returns the saved collection JSON and its URI, plus the written item file
     URIs.
     """
@@ -113,7 +118,7 @@ def export_tree(
         guard = target / _OBJECT_FILENAME
         if not overwrite and guard.exists():
             raise FileExistsError(f"Target already exists: {guard}. Set overwrite=true to replace it.")
-        collection.normalize_hrefs(str(target))
+        assign_safe_hrefs(collection, target, warnings)
         collection.save(catalog_type=pystac.CatalogType.SELF_CONTAINED)
         logger.info("Step 4: saved collection tree to %s", target)
 

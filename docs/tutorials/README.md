@@ -29,7 +29,7 @@ make docs-slides
 
 # PDF / PPTX (needs Chromium; add --browser=download if none installed)
 npx -y @marp-team/marp-cli@latest ept-handson-tutorial.marp.md \
-  --theme edito2.css --pdf -o ept-handson-tutorial.pdf
+  --theme edito2.css --allow-local-files --pdf -o ept-handson-tutorial.pdf
 ```
 
 Or install the **Marp for VS Code** extension and set

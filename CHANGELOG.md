@@ -27,14 +27,23 @@ versioning follows [SemVer](https://semver.org/).
 
 ### Changed
 
+- `arco-stac-item` default output: a link or local Item with no
+  `item_target`/`assets_target` is written to `s3://<bucket>/<item_id>.json`
+  (bucket root, `oidc-<username>` by default) instead of failing
 - S3-backed features now return browser-addressable `https://` asset hrefs
 - Unified local output handling (`LocalOutput` field type, target file-name semantics, S3 env fallbacks)
 - OpenAPI endpoints grouped into facet tags; versioned handbook served via mkdocs
 - Auth logs downgraded from info to debug
 - Tutorial rework: standalone scripts with inline API calls, workspace-unique item IDs
 
+### Changed
+
+- Item builders namespace derived ids with the caller's username (same scheme as the suggesters): when no `item_id` is given, `netcdf-to-stac` and `zarr-to-stac` prefer the dataset's own `id`, `identifier`, or `title` attribute (falling back to the source file/store name), and `iso-to-stac-item` prefixes the ISO `fileIdentifier` (title as last resort) — proposed ids become `<username>-<identifier>`
+
 ### Fixed
 
+- Safe export names everywhere: any id used for an export file/folder name is the id itself when safe (alphanumerics plus `. _ -`), else slugified with a warning — `stac-suggest-catalog` copies collections under `<target>/<collection-id>/` (was `<target>/collections/<id>/`), `stac-suggest-collection` and `stac-assemble` slug unsafe item/child ids in the pystac tree, and the single-file exporters (`netcdf-to-stac`, `zarr-to-stac`, `iso-to-stac-item`, `arco-stac-item`, `nc-to-zarr`) slug id/file-name-derived outputs; caller-supplied file-name overrides go through the same check, and id-slug collisions are rejected
+- `stac-suggest-catalog` returns browser-addressable `https://` URIs for the exported catalog/collection/item files (was `s3://`)
 - `nc-to-zarr` for THREDDS DAP sources and S3 clients with ambient AWS profiles
 - `arco-stac-item` S3 ops with stsonly STS credentials (missing `session_token` forwarding)
 - `validate_stac` false negatives: interval-only items and WGS84 bounds

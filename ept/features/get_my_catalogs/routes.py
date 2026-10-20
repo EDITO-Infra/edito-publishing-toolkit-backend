@@ -1,4 +1,4 @@
-"""FastAPI route for catalogs available to the authenticated EDITO user."""
+"""FastAPI route for the EDITO project catalogs owned by the authenticated user."""
 
 from fastapi import APIRouter, HTTPException, status
 
@@ -38,9 +38,11 @@ EDITO_STAC_ERROR_RESPONSE_EXAMPLE = {
     summary="Get my catalogs",
     operation_id="getMyCatalogsV1",
     description=(
-        "Return the catalog IDs available to the authenticated user from "
-        "EDITO STAC. Only IDs beginning with `projects/` are included. "
-        "Requires `Authorization: Bearer <access_token>`."
+        "Return the IDs of the EDITO STAC project catalogs owned by the "
+        "authenticated user (the upstream /users/{username}/catalogs endpoint "
+        "lists catalogs the user owns). Only IDs beginning with `projects/` "
+        "are included; an empty array means the user has not created any "
+        "project catalogs yet. Requires `Authorization: Bearer <access_token>`."
     ),
     responses=problem_responses(
         upstream_backed=True,

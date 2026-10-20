@@ -302,6 +302,35 @@ def test_default_item_id_from_local_and_remote_sources():
 
 
 @unit
+def test_proposed_item_id_prefers_dataset_identifier_and_namespaces_username():
+    from ept.features.netcdf_to_stac.adapters import dataset_item_id, proposed_item_id
+
+    def _summary(attrs: dict[str, str]):
+        from ept.infrastructure.formats.xarray import DatasetSummary
+
+        return DatasetSummary(
+            source="obs.nc",
+            dims={},
+            coords={},
+            variables={},
+            attrs=attrs,
+            bbox=[2.0, 50.0, 4.0, 52.0],
+            temporal=None,
+            instant=None,
+        )
+
+    summary = _summary({"id": "North Sea CTD", "title": "x"})
+    assert dataset_item_id(summary, "/data/obs.nc") == "North Sea CTD"
+    assert proposed_item_id(summary, "/data/obs.nc", "oidc-user") == "oidc-user-north-sea-ctd"
+
+    # `identifier`, then `title`, then the file name.
+    assert dataset_item_id(_summary({"identifier": "ABC-123"}), "/data/obs.nc") == "ABC-123"
+    assert dataset_item_id(_summary({"title": "Salinity Climatology"}), "/data/obs.nc") == "Salinity Climatology"
+    assert proposed_item_id(_summary({}), "/data/obs.nc", "oidc-user") == "oidc-user-obs"
+    assert proposed_item_id(_summary({}), "/data/obs.nc", None) == "obs"
+
+
+@unit
 def test_write_item_locally_with_overwrite_guard(tmp_path):
     target = tmp_path / "nested" / "item.json"
 
@@ -335,7 +364,7 @@ def _target_request(**overrides):
 def test_resolve_target_uri_appends_item_id_to_prefix():
     from ept.features.netcdf_to_stac.service import resolve_target_uri
 
-    target_uri, is_s3 = resolve_target_uri(_target_request(item_id="observations"), "oidc-user")
+    target_uri, is_s3 = resolve_target_uri(_target_request(item_id="observations"), "observations", "oidc-user")
 
     assert target_uri == "s3://oidc-user/stac/items/observations.json"
     assert is_s3
@@ -347,7 +376,7 @@ def test_resolve_target_uri_target_ending_in_json_overrides_file_name():
 
     request = _target_request(item_id="observations", target="stac/custom.json", bucket="proj")
 
-    target_uri, _ = resolve_target_uri(request, "oidc-user")
+    target_uri, _ = resolve_target_uri(request, "observations", "oidc-user")
 
     assert target_uri == "s3://proj/stac/custom.json"
 
@@ -358,7 +387,7 @@ def test_resolve_target_uri_local_output_directory():
 
     request = _target_request(item_id="observations", target=None, local_output="/out/items")
 
-    target_uri, is_s3 = resolve_target_uri(request, "oidc-user")
+    target_uri, is_s3 = resolve_target_uri(request, "observations", "oidc-user")
 
     assert (target_uri, is_s3) == ("/out/items/observations.json", False)
 
@@ -368,4 +397,4 @@ def test_resolve_target_uri_requires_a_bucket():
     from ept.features.netcdf_to_stac.service import resolve_target_uri
 
     with pytest.raises(ValueError, match="bucket is required"):
-        resolve_target_uri(_target_request(item_id="x"), None)
+        resolve_target_uri(_target_request(item_id="x"), "x", None)

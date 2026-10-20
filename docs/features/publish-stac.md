@@ -51,7 +51,7 @@ print(response.json()["job_id"])
 The public request accepts only `remote_stac_url` and `catalog_id`:
 
 - `remote_stac_url` — URL of the STAC catalog to publish, for example in your EDITO object storage.
-- `catalog_id` — the EDITO project catalog to publish into, such as `projects/{project-id}`. Use [Get my catalogs](get-my-catalogs.md) to list the IDs available to you.
+- `catalog_id` — the EDITO project catalog to publish into, such as `projects/{project-id}`. Use [Get my catalogs](get-my-catalogs.md) to list the project catalog IDs you own; an empty array means you have not created any project catalogs yet.
 
 ## Response
 

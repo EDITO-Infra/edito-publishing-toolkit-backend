@@ -66,6 +66,9 @@ curl -s $BASE/v1/edito/stac/mycatalogs -H "Authorization: Bearer $TOKEN"
 # e.g. ["projects/my-project/catalogs/my-catalog"]
 ```
 
+This lists the project catalogs you **own** — an empty response (`[]`) just
+means you have not created any project catalogs yet.
+
 ---
 
 ## Scenario 1 — ISO19139 metadata to STAC Item
@@ -95,8 +98,10 @@ Notes:
 
 - `source_uri` accepts any HTTP(S) URL, including GeoNetwork
   `.../formatters/xml` endpoints.
-- The Item is named `<item_id>.json` under `target` (`item_id` defaults to the
-  ISO fileIdentifier); unique ids avoid publish-time collisions.
+- The Item is named `<item_id>.json` under `target` (when `item_id` is
+  omitted, EPT proposes one from the ISO fileIdentifier, namespaced with
+  your username — `<username>-<fileIdentifier>`); unique ids avoid
+  publish-time collisions.
 - Each Item's assets carry the record's online resources — here one of them is
   the data download (a `.zip` with the geodatabase), which scenario 3
   converts.
@@ -162,7 +167,9 @@ Notes:
 - Override the derived values with `bbox` and `start_datetime`/`end_datetime`
   when the source lacks CF coordinates/attributes.
 - `target` is a prefix — the file is named after `item_id`
-  (`my-netcdf-item.json`).
+  (`my-netcdf-item.json`). When `item_id` is omitted, EPT proposes one from
+  the dataset's own `id`/`identifier` attribute (else the source file name),
+  namespaced with your username — `<username>-<identifier>`.
 - The Item's data asset is the **NetCDF itself** — scenario 3 converts it to
   Zarr in place.
 
@@ -248,7 +255,7 @@ curl -s -X POST $BASE/v1/stac/suggest/collection \
       "https://minio.dive.edito.eu/'$BUCKET'/items/vector/my-vector-item.json",
       "https://minio.dive.edito.eu/'$BUCKET'/items/netcdf/my-netcdf-item.json"
     ],
-    "id": "my-collection",
+    "title": "My collection",
     "bucket": "'$BUCKET'",
     "target": "collections/my-collection",
     "overwrite": true,
@@ -258,7 +265,12 @@ curl -s -X POST $BASE/v1/stac/suggest/collection \
   }' | jq '{status, exported, collection_uri, item_uris, warnings}'
 ```
 
-Check `.warnings` for anything EPT had to guess (for example a missing
+No `id` given — EPT proposes one, namespaced with your username
+(`<username>-my-collection`, from the title slug); the proposal is in
+`warnings` and the full location of what landed in `collection_uri`.
+Pass your own username-prefixed `id` instead if you want to pin it.
+
+Check `.warnings` for anything else EPT had to guess (for example a missing
 license). The export stamps the id onto the item copies (`collection`
 property plus `root`/`parent`/`collection` links), so the folder is complete
 and self-rooted.
@@ -280,7 +292,6 @@ curl -s -X POST $BASE/v1/stac/suggest/catalog \
     "collection_links": [
       "https://minio.dive.edito.eu/'$BUCKET'/collections/my-collection/collection.json"
     ],
-    "id": "my-catalog",
     "title": "My project catalog",
     "description": "All EDITO deliverables for my project.",
     "bucket": "'$BUCKET'",
@@ -289,8 +300,12 @@ curl -s -X POST $BASE/v1/stac/suggest/catalog \
     "endpoint_url": "https://minio.dive.edito.eu",
     "access_key_id": "'$S3_KEY'", "secret_access_key": "'$S3_SECRET'",
     "session_token": "'$S3_SESSION'"
-  }' | jq '{status, exported, catalog_uri, collection_uris, item_uris}'
+  }' | jq '{status, exported, catalog_uri, collection_uris, item_uris, warnings}'
 ```
+
+No `id` here either — EPT proposes `<username>-my-project-catalog` (title
+slug, namespaced with your username so it is unique among your catalogs);
+the proposal is in `warnings`, the location in `catalog_uri`.
 
 Alternative: instead of `collection_links`, pass `source_folder` =
 `s3://$BUCKET/collections` — the folder of collection trees, each subfolder
@@ -331,8 +346,10 @@ curl -s -X POST $BASE/v1/edito/stac/publish \
 # {"job_id": "...", "status": "queued"}
 ```
 
-`catalog_id` is the raw value from `GET /v1/edito/stac/mycatalogs` — EPT adds
-the infrastructure catalog root itself. `remote_stac_url` must be the exported
+`catalog_id` is the `projects/…` id of your project catalog — the tree you
+built in 4.2 publishes under it. `GET /v1/edito/stac/mycatalogs` lists the
+project catalogs you own (empty until you have created one). EPT adds the
+infrastructure catalog root itself. `remote_stac_url` must be the exported
 tree's root (`stac-final/catalog.json`, served over HTTPS).
 
 ### 4.5 Poll the job

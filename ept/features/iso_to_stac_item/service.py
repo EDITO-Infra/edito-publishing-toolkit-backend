@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from pathlib import Path
 
 from ept.infrastructure.formats.iso19139 import open_isoxml
@@ -22,6 +21,8 @@ from ept.infrastructure.storage.s3 import (
     is_s3_uri,
     resolve_s3_storage_options,
     s3_url_to_fs,
+    safe_export_name,
+    slugify,
     with_file_name,
 )
 
@@ -36,12 +37,15 @@ __all__ = ["iso_to_stac_item"]
 def iso_to_stac_item(
     request: IsoToStacItemRequest,
     default_bucket: str | None = None,
+    *,
+    default_username: str | None = None,
 ) -> IsoToStacItemResponse:
     """Read an ISO19139 record, convert it to a STAC Item, and write the Item JSON.
 
     Standard output is ``s3://<bucket>/<target>/<item_id>.json``; when
     ``local_output`` is set the JSON is written to that directory on the EPT
-    filesystem instead.
+    filesystem instead. A derived id (ISO identifier or title slug) is
+    namespaced with the caller's username — same scheme as the suggesters.
     """
 
     source_uri = request.source_uri.strip()
@@ -57,9 +61,11 @@ def iso_to_stac_item(
         record_id=request.item_id,
     )
     stac_item = build_item(item_input)
+    if request.item_id is None and default_username:
+        stac_item["id"] = f"{default_username}-{slugify(str(stac_item['id']), 'item')}"
     validate_item(stac_item)
 
-    file_name = f"{_safe_name(stac_item['id'])}.json"
+    file_name = f"{safe_export_name(str(stac_item['id']), fallback='item')}.json"
     payload = json.dumps(stac_item, indent=2, ensure_ascii=False)
 
     if request.local_output:
@@ -136,12 +142,6 @@ def _resolve_bucket(request: IsoToStacItemRequest, default_bucket: str | None) -
         "bucket is required: the bearer token carries no username from which to "
         "derive the default oidc-<username> bucket."
     )
-
-
-def _safe_name(value: str) -> str:
-    """Filesystem- and key-safe file name for the output Item JSON."""
-
-    return re.sub(r"[^A-Za-z0-9._-]+", "-", value.strip()).strip("-") or "item"
 
 
 def _read_source(source_uri: str, storage_options: dict[str, object] | None) -> str:

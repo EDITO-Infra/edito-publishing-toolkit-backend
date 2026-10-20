@@ -15,14 +15,17 @@ two collection URLs into `collection_links` (a JSON array of strings):
 
 ```json
 [
-  "https://minio.dive.edito.eu/<bucket>/<workspace>/collections/<workspace>-habitats-and-heritage/collection.json",
-  "https://minio.dive.edito.eu/<bucket>/<workspace>/collections/<workspace>-ocean-chemistry/collection.json"
+  "https://minio.dive.edito.eu/<bucket>/<workspace>/collections/<projectid>-habitats-and-heritage/collection.json",
+  "https://minio.dive.edito.eu/<bucket>/<workspace>/collections/<projectid>-ocean-chemistry/collection.json"
 ]
 ```
 
-Then set `id` = `<workspace>-catalog`, a `title` and `description` of your
+Then set `id` = `<projectid>-catalog`, a `title` and `description` of your
 choice, `bucket` = your bucket, `target` = `<workspace>/stac-final`, tick
-`overwrite`.
+`overwrite`. Catalog ids must be unique among your catalogs. Leave `id` out
+and EPT proposes `<username>-<title slug>` from your token — username-
+namespaced, not project-scoped — so in a shared project session pass the
+explicit `<projectid>-…` id, as below.
 
 `POST /v1/stac/suggest/catalog` does the whole assembly:
 
@@ -30,10 +33,11 @@ choice, `bucket` = your bucket, `target` = `<workspace>/stac-final`, tick
 2. fetches each Collection's item files via its `item` links;
 3. enriches the catalog metadata from the collections — keywords unioned,
    providers merged (shown in `warnings`);
-4. exports a self-contained tree: `catalog.json` at the `stac-final/` root
-   with relative `child` links (`collections/<id>/collection.json`), each
-   Collection copied under `stac-final/collections/<id>/` with its
-   `root`/`parent` links re-pointed at the catalog, item copies re-linked.
+4. exports a self-contained tree in the standard STAC layout: `catalog.json`
+   at the `stac-final/` root with relative `child` links
+   (`<id>/collection.json`), each Collection copied under
+   `stac-final/<id>/` with its `root`/`parent` links re-pointed at the
+   catalog, item copies re-linked.
 
 The response says `status: "completed"` and `exported: true`, with
 `catalog_uri`, `collection_uris` and `item_uris` pointing at what landed.
@@ -43,10 +47,10 @@ curl -X POST $EPT_URL/v1/stac/suggest/catalog \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{
     "collection_links": [
-      "https://minio.dive.edito.eu/'$BUCKET'/'$WORKSPACE'/collections/'$WORKSPACE'-habitats-and-heritage/collection.json",
-      "https://minio.dive.edito.eu/'$BUCKET'/'$WORKSPACE'/collections/'$WORKSPACE'-ocean-chemistry/collection.json"
+      "https://minio.dive.edito.eu/'$BUCKET'/'$WORKSPACE'/collections/'$PROJECTID'-habitats-and-heritage/collection.json",
+      "https://minio.dive.edito.eu/'$BUCKET'/'$WORKSPACE'/collections/'$PROJECTID'-ocean-chemistry/collection.json"
     ],
-    "id": "'$WORKSPACE'-catalog",
+    "id": "'$PROJECTID'-catalog",
     "title": "EPT hands-on tutorial",
     "description": "Datasets converted with the EDITO Publishing Toolkit.",
     "bucket": "'$BUCKET'",
@@ -62,12 +66,12 @@ curl -X POST $EPT_URL/v1/stac/suggest/catalog \
 ```python
 collection_urls = [
     f"{MINIO}/{BUCKET}/{WORKSPACE}/collections/{cid}/collection.json"
-    for cid in (f"{WORKSPACE}-habitats-and-heritage",     # exported earlier
-                f"{WORKSPACE}-ocean-chemistry")]          # your-turn collection
+    for cid in (f"{PROJECTID}-habitats-and-heritage",     # exported earlier
+                f"{PROJECTID}-ocean-chemistry")]          # your-turn collection
 
 catalog = post("/v1/stac/suggest/catalog",
      collection_links=collection_urls,
-     id=f"{WORKSPACE}-catalog",
+     id=f"{PROJECTID}-catalog",
      title="EPT hands-on tutorial",
      description="Datasets converted with the EDITO Publishing Toolkit.",
      bucket=BUCKET, target=f"{WORKSPACE}/stac-final",
@@ -112,14 +116,13 @@ layout (one file per item, nested by item id):
 ```
 stac-final/
 ├── catalog.json
-└── collections/
-    ├── <workspace>-habitats-and-heritage/
-    │   ├── collection.json
-    │   ├── <workspace>-mangrove/<workspace>-mangrove.json
-    │   └── <workspace>-heritage-shipwrecks/<workspace>-heritage-shipwrecks.json
-    └── <workspace>-ocean-chemistry/
-        ├── collection.json
-        └── <workspace>-din/<workspace>-din.json
+├── <projectid>-habitats-and-heritage/
+│   ├── collection.json
+│   ├── <projectid>-mangrove/<projectid>-mangrove.json
+│   └── <projectid>-heritage-shipwrecks/<projectid>-heritage-shipwrecks.json
+└── <projectid>-ocean-chemistry/
+    ├── collection.json
+    └── <projectid>-din/<projectid>-din.json
 ```
 
 ## 3. Make it yours (optional)

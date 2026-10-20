@@ -22,13 +22,13 @@ strings):
 
 ```json
 [
-  "https://minio.dive.edito.eu/<bucket>/<workspace>/items/mangrove/<workspace>-mangrove.json",
-  "https://minio.dive.edito.eu/<bucket>/<workspace>/items/heritage-shipwrecks/<workspace>-heritage-shipwrecks.json"
+  "https://minio.dive.edito.eu/<bucket>/<workspace>/items/mangrove/<projectid>-mangrove.json",
+  "https://minio.dive.edito.eu/<bucket>/<workspace>/items/heritage-shipwrecks/<projectid>-heritage-shipwrecks.json"
 ]
 ```
 
-Then set `id` = `<workspace>-habitats-and-heritage`, `bucket` = your bucket,
-  `target` = `<workspace>/collections/<workspace>-habitats-and-heritage`, and
+Then set `id` = `<projectid>-habitats-and-heritage`, `bucket` = your bucket,
+  `target` = `<workspace>/collections/<projectid>-habitats-and-heritage`, and
 tick `overwrite`.
 
 These are the two mangrove/heritage Items — the DIN Item stays out:
@@ -41,25 +41,29 @@ becomes the Collection license (distinct licenses become a `licenses` list),
 keywords are unioned, and the id/title are suggested too. Nothing here is
 hand-written — you only pick the destination and the id.
 
-The id is yours to pick — flat, no `/`, workspace-unique; EPT proposes one
-if you leave it out. Nothing needs to match beforehand: the export in the
-same call stamps the id onto the item copies (`collection` property plus
-`root`/`parent`/`collection` links), so `collection.json` plus one
-subfolder per item (`<item-id>/<item-id>.json`) lands complete and
-self-rooted. The response says `status: "completed"` and `exported: true`,
-with `collection_uri` and `item_uris` pointing at what landed.
+The id is yours to pick — flat, no `/`, prefixed with your project's short
+name (`<projectid>-…`), which **must be unique**: every id in the session
+derives from it. Leave the id out and EPT proposes one itself — namespaced
+with *your username*, not the project — so in a shared project session pass
+the explicit `<projectid>-…` id, as below. Nothing needs to match
+beforehand: the export in the same call stamps the id onto the item copies
+(`collection` property plus `root`/`parent`/`collection` links), so
+`collection.json` plus one subfolder per item (`<item-id>/<item-id>.json`)
+lands complete and self-rooted. The response says `status: "completed"` and
+`exported: true`, with `collection_uri` and `item_uris` pointing at what
+landed.
 
 ```bash
 curl -X POST $EPT_URL/v1/stac/suggest/collection \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{
     "item_links": [
-      "https://minio.dive.edito.eu/'$BUCKET'/'$WORKSPACE'/items/mangrove/'$WORKSPACE'-mangrove.json",
-      "https://minio.dive.edito.eu/'$BUCKET'/'$WORKSPACE'/items/heritage-shipwrecks/'$WORKSPACE'-heritage-shipwrecks.json"
+      "https://minio.dive.edito.eu/'$BUCKET'/'$WORKSPACE'/items/mangrove/'$PROJECTID'-mangrove.json",
+      "https://minio.dive.edito.eu/'$BUCKET'/'$WORKSPACE'/items/heritage-shipwrecks/'$PROJECTID'-heritage-shipwrecks.json"
     ],
-    "id": "'$WORKSPACE'-habitats-and-heritage",
+    "id": "'$PROJECTID'-habitats-and-heritage",
     "bucket": "'$BUCKET'",
-    "target": "'$WORKSPACE'/collections/'$WORKSPACE'-habitats-and-heritage",
+    "target": "'$WORKSPACE'/collections/'$PROJECTID'-habitats-and-heritage",
     "overwrite": true,
     "endpoint_url": "https://minio.dive.edito.eu",
     "access_key_id": "'$S3_KEY'", "secret_access_key": "'$S3_SECRET'",
@@ -69,12 +73,13 @@ curl -X POST $EPT_URL/v1/stac/suggest/collection \
 ```
 
 ```python
-my_id = f"{WORKSPACE}-habitats-and-heritage"   # any flat, workspace-unique id works
+my_id = f"{PROJECTID}-habitats-and-heritage"   # or omit id: EPT proposes
+                                              # <projectid>-<title slug>
 
 collection = post("/v1/stac/suggest/collection",
      item_links=[
-         f"{MINIO}/{BUCKET}/{WORKSPACE}/items/mangrove/{WORKSPACE}-mangrove.json",
-         f"{MINIO}/{BUCKET}/{WORKSPACE}/items/heritage-shipwrecks/{WORKSPACE}-heritage-shipwrecks.json",
+         f"{MINIO}/{BUCKET}/{WORKSPACE}/items/mangrove/{PROJECTID}-mangrove.json",
+         f"{MINIO}/{BUCKET}/{WORKSPACE}/items/heritage-shipwrecks/{PROJECTID}-heritage-shipwrecks.json",
      ],
      id=my_id,
      bucket=BUCKET, target=f"{WORKSPACE}/collections/{my_id}",
@@ -94,7 +99,7 @@ on its own. Check what landed with *STAC Fetch*: the `id` is yours,
 `extent` covers both Items, `license` matches.
 
 ```bash
-MY_ID=$WORKSPACE-habitats-and-heritage
+MY_ID=$PROJECTID-habitats-and-heritage
 
 curl -s "$EPT_URL/v1/stac/get?url=https://minio.dive.edito.eu/$BUCKET/$WORKSPACE/collections/$MY_ID/collection.json" \
   -H "Authorization: Bearer $TOKEN" | jq '.stac_object | .id, .extent, .license'
@@ -104,7 +109,7 @@ Then validate the folder where it stands — `validate_children` checks the
 Collection **and** its item copies:
 
 **In the frontend:** *STAC Tools* → **Validate STAC** — `stac_url` =
-`https://minio.dive.edito.eu/<bucket>/<workspace>/collections/<workspace>-habitats-and-heritage/collection.json`,
+`https://minio.dive.edito.eu/<bucket>/<workspace>/collections/<projectid>-habitats-and-heritage/collection.json`,
 `validate_children` **on**.
 
 ```bash
@@ -136,7 +141,7 @@ it's what the exported item copies carry and what the catalog links under.
 **In the frontend:** *STAC Collection Builder* — open the
 `collection.json` URL above in a browser, copy the JSON, paste it as
 `stac_json`, edit `title` and `description` in the JSON, keep `bucket` +
-`target` = `<workspace>/collections/<workspace>-habitats-and-heritage`,
+`target` = `<workspace>/collections/<projectid>-habitats-and-heritage`,
 `overwrite` on, export.
 
 ```bash
@@ -177,12 +182,12 @@ Collection from items** — `item_links` = this single URL:
 
 ```json
 [
-  "https://minio.dive.edito.eu/<bucket>/<workspace>/items/din/<workspace>-din.json"
+  "https://minio.dive.edito.eu/<bucket>/<workspace>/items/din/<projectid>-din.json"
 ]
 ```
 
-`id` = `<workspace>-ocean-chemistry`, `bucket` = your bucket, `target` =
-`<workspace>/collections/<workspace>-ocean-chemistry`, `overwrite` on —
+`id` = `<projectid>-ocean-chemistry`, `bucket` = your bucket, `target` =
+`<workspace>/collections/<projectid>-ocean-chemistry`, `overwrite` on —
 then read it back and validate exactly as in steps 1–2 above.
 
 Keep that id — the catalog step links the Collection under it, so a

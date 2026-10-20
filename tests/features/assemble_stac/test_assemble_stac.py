@@ -278,6 +278,37 @@ def test_export_tree_writes_self_contained_layout(tmp_path: Path):
 
 
 @unit
+def test_export_tree_slugifies_unsafe_ids(tmp_path: Path):
+    collection = _collection("Weird Col!", links=[{"rel": "parent", "href": "catalog.json"}])
+    item = _item(
+        "my item",
+        links=[
+            {"rel": "parent", "href": "col.json"},
+            {"rel": "collection", "href": "col.json"},
+        ],
+    )
+    root, _ = assemble_tree(
+        [
+            StacObject("catalog.json", _catalog("root")),
+            StacObject("col.json", collection),
+            StacObject("it.json", item),
+        ]
+    )
+    target = tmp_path / "out"
+    warnings: list[str] = []
+    report = export_tree(root, str(target), warnings=warnings)
+
+    assert {e.path for e in report.exported} == {
+        "catalog.json",
+        "weird-col/collection.json",
+        "weird-col/my-item/my-item.json",
+    }
+    data = json.loads((target / "weird-col" / "my-item" / "my-item.json").read_text())
+    assert data["id"] == "my item"  # id unchanged, only the export name slugged
+    assert any("not safe as a file/folder name" in w for w in warnings)
+
+
+@unit
 def test_export_tree_refuses_overwrite_false_on_existing(tmp_path: Path):
     root, _ = assemble_tree([StacObject("catalog.json", _catalog("root"))])
     target = tmp_path / "out"

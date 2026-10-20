@@ -130,7 +130,7 @@ def test_request_collection_id_overrides_options() -> None:
 
 @unit
 def test_output_target_or_local_output() -> None:
-    # target is schema-required; omitting it is a validation error.
+    # exactly one output: target (S3) or local_output; omitting both is a validation error.
     with pytest.raises(ValidationError, match="target"):
         IsoToStacItemRequest(source_uri="record.xml")
 
@@ -171,6 +171,31 @@ def test_service_writes_local_output(tmp_path) -> None:
     assert response.target_uri == str(output_dir / "test-dataset-001.json")
     written = json.loads(Path(response.target_uri).read_text(encoding="utf-8"))
     assert written["id"] == "test-dataset-001"
+
+
+@unit
+def test_service_namespaces_derived_id_with_username(tmp_path) -> None:
+    source = tmp_path / "record.xml"
+    source.write_text(ISO_XML, encoding="utf-8")
+    output_dir = tmp_path / "out"
+
+    response = iso_to_stac_item(
+        IsoToStacItemRequest(source_uri=str(source), target=None, local_output=str(output_dir)),
+        default_username="oidc-user",
+    )
+
+    # ISO fileIdentifier, slugified and prefixed with the username.
+    assert response.item_id == "oidc-user-test-dataset-001"
+    assert response.target_uri.endswith("oidc-user-test-dataset-001.json")
+
+    # An explicit item_id is used as-is, no prefix.
+    explicit = iso_to_stac_item(
+        IsoToStacItemRequest(
+            source_uri=str(source), target=None, local_output=str(output_dir), item_id="my-id", overwrite=True
+        ),
+        default_username="oidc-user",
+    )
+    assert explicit.item_id == "my-id"
 
 
 @unit

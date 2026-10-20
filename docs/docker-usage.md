@@ -74,3 +74,11 @@ Stop and remove the Compose containers:
 ```bash
 docker compose down
 ```
+
+## Persisted state
+
+`workspace/` and `data/` next to the compose file are bind-mounted into the container, so they survive rebuilds, `down`, and even `down -v` (which only removes named volumes). `data/owner.state` records which EDITO user claimed this deployment — to release it, delete that file (root-owned when the container runs as root):
+
+```bash
+docker compose run --rm --user 0:0 --no-deps ept-api rm /app/data/owner.state
+```

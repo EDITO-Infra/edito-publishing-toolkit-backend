@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import logging
+import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -21,7 +22,9 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["open_isoxml", "parse_isoxml"]
 
-_FETCH_TIMEOUT_SECONDS = 30.0
+_FETCH_TIMEOUT_SECONDS = 40.0
+_FETCH_RETRIES = 2
+_FETCH_RETRY_BACKOFF_SECONDS = 2.0
 
 
 def open_isoxml(source: str) -> str:
@@ -77,8 +80,21 @@ def _namespaces(xml: str) -> dict[str, str]:
 
 def _read_from_http(url: str) -> str:
     require_public_http_url(url)
-    response = httpx.get(url, follow_redirects=True, timeout=_FETCH_TIMEOUT_SECONDS)
-    response.raise_for_status()
+    response: httpx.Response | None = None
+    for attempt in range(_FETCH_RETRIES + 1):
+        try:
+            response = httpx.get(url, follow_redirects=True, timeout=_FETCH_TIMEOUT_SECONDS)
+            response.raise_for_status()
+            break
+        except (httpx.TimeoutException, httpx.TransportError) as exc:
+            if attempt >= _FETCH_RETRIES:
+                raise
+            logger.warning(
+                "ISO19139 fetch failed (attempt %d/%d) url=%s error=%s",
+                attempt + 1, _FETCH_RETRIES + 1, url, exc,
+            )
+            time.sleep(_FETCH_RETRY_BACKOFF_SECONDS * (attempt + 1))
+    assert response is not None
     logger.info("Read ISO19139 record from HTTP url=%s bytes=%d", url, len(response.text))
     return response.text
 

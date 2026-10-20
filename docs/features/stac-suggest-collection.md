@@ -87,6 +87,7 @@ Id proposal: an explicit `id` always wins. With a base it is `<base id>-<slug>`;
 
 ## Good to know
 
+- Export names are safe: `collection.json` goes to the target root and each item to `<item-id>/<item-id>.json`; ids that are unsafe as file/folder names (spaces, `/`, `..`, …) are slugified for the export (with a warning) while the item id itself stays untouched. Two items slugging to the same name are rejected.
 - Extent is a union: `bbox` values of 4 or 6 are accepted (mixed 2D/3D items are projected to 2D), and datetimes come from `properties.datetime` or `properties.start_datetime`/`end_datetime`. Unparseable datetimes are ignored with a warning.
 - With no item geometry or datetime, the extent is copied from the base — or becomes a world-wide placeholder (`[-180,-90,180,90]`, open temporal interval) with a warning.
 - License is scanned per item in order of authority: top-level or `properties.license`, `properties.licenses[].id`, then SPDX ids recovered from `properties.constraints[].text`. Items disagreeing on the license cannot be merged — the conflict is reported and the default (`other`) is used unless you pass `license` explicitly.

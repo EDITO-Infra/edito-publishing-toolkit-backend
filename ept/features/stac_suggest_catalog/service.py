@@ -11,7 +11,7 @@ Two modes:
   self-contained Collection trees, the layout ``suggest/collection`` exports)
   and/or ``collection_links`` (each collection's item files are fetched via
   its ``item`` links). Every collection tree is copied under
-  ``<target>/collections/<id>/`` with its links re-pointed at the new catalog,
+  ``<target>/<collection-id>/`` with its links re-pointed at the new catalog,
   item copies re-linked, and ``catalog.json`` written at the target root with
   relative child links — a complete, publishable, self-contained tree,
   validatable with /v1/stac/validate (``validate_children``).
@@ -22,7 +22,6 @@ from __future__ import annotations
 import json
 import logging
 import posixpath
-import re
 from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urljoin, urlparse
@@ -35,9 +34,13 @@ from ept.infrastructure.formats.stac.fetch import fetch_json
 from ept.infrastructure.formats.stac.item import validate_item
 from ept.infrastructure.services.edito_auth import S3ConnectionParameters
 from ept.infrastructure.storage.s3 import (
+    full_s3_url,
     is_s3_uri,
     resolve_s3_storage_options,
+    s3_endpoint_url,
     s3_url_to_fs,
+    safe_export_name,
+    slugify,
 )
 from ept.infrastructure.utils.urlguard import UnsafeUrlError
 
@@ -45,9 +48,7 @@ from .models import SuggestCatalogRequest
 
 logger = logging.getLogger(__name__)
 
-_SLUG_PATTERN = re.compile(r"[^a-z0-9]+")
 _CATALOG_FILENAME = "catalog.json"
-_COLLECTIONS_DIRNAME = "collections"
 _COLLECTION_FILENAME = "collection.json"
 
 # A scope: one collection plus its item files as (rel_path_within_tree, item_dict).
@@ -108,8 +109,14 @@ def suggest_catalog(
         }
 
     stac_object, catalog_uri, collection_uris, item_uris = _export_catalog_tree(
-        stac_object, scopes, target, overwrite=request.overwrite, s3=s3  # type: ignore[arg-type]  # export implies target
+        stac_object,
+        scopes,
+        target,  # type: ignore[arg-type]  # export implies target
+        warnings=warnings,
+        overwrite=request.overwrite,
+        s3=s3,
     )
+    endpoint = s3_endpoint_url(s3) or ""
     logger.info(
         "Assembled STAC Catalog id=%s collections=%d items=%d target=%s warnings=%d",
         stac_object["id"],
@@ -123,9 +130,9 @@ def suggest_catalog(
         "warnings": warnings,
         "status": "completed",
         "exported": True,
-        "catalog_uri": catalog_uri,
-        "collection_uris": collection_uris,
-        "item_uris": item_uris,
+        "catalog_uri": _full_uri(endpoint, catalog_uri),
+        "collection_uris": [_full_uri(endpoint, uri) for uri in collection_uris],
+        "item_uris": [_full_uri(endpoint, uri) for uri in item_uris],
     }
 
 
@@ -331,12 +338,16 @@ def _export_catalog_tree(
     scopes: list[Scope],
     target: str,
     *,
+    warnings: list[str],
     overwrite: bool,
     s3: S3ConnectionParameters | None,
 ) -> tuple[dict[str, Any], str, list[str], list[str]]:
-    """Copy each collection under ``<target>/collections/<id>/``, re-linked to the catalog.
+    """Copy each collection under ``<target>/<collection-id>/``, re-linked to the catalog.
 
-    The catalog is written at the target root with relative child links; every
+    Standard self-contained layout: ``catalog.json`` at the target root and
+    each collection in its own folder directly next to it (STAC best
+    practice). Collection ids that are unsafe as folder names are slugified,
+    with a warning. The catalog's child links are relative; every
     collection.json gains root/parent links to the catalog and fresh item
     links; every item copy gains root (catalog), parent/collection (its
     collection). Item assets and non-topological links are preserved as-is.
@@ -349,6 +360,8 @@ def _export_catalog_tree(
             "each collection must appear once."
         )
 
+    dirname_of = _collection_dirnames(scopes, warnings)
+
     catalog_rel = _CATALOG_FILENAME
     payloads: list[tuple[str, str]] = []
     collection_uris: list[str] = []
@@ -357,7 +370,7 @@ def _export_catalog_tree(
 
     for collection, items in scopes:
         collection_id = str(collection["id"])
-        dest_dir = f"{_COLLECTIONS_DIRNAME}/{collection_id}"
+        dest_dir = dirname_of[collection_id]
         collection_rel = f"{dest_dir}/{_COLLECTION_FILENAME}"
         up_to_catalog = posixpath.relpath(catalog_rel, dest_dir)
 
@@ -366,20 +379,21 @@ def _export_catalog_tree(
             for link in collection.get("links") or []
             if isinstance(link, dict) and link.get("rel") not in {"root", "parent", "item", "self", "child"}
         ]
+        safe_item_rels = [_safe_item_rel(item_rel, dest_dir, warnings) for item_rel, _ in items]
         collection_json = dict(collection)
         collection_json["links"] = [
             *kept_links,
             {"rel": "root", "href": up_to_catalog},
             {"rel": "parent", "href": up_to_catalog},
-            *[{"rel": "item", "href": item_rel} for item_rel, _ in items],
+            *[{"rel": "item", "href": item_rel} for item_rel in safe_item_rels],
         ]
         validate_collection(collection_json)
         payloads.append((collection_rel, json.dumps(collection_json, indent=2)))
         collection_uris.append(f"{target}/{collection_rel}")
         child_ids.append(collection_id)
 
-        for item_rel, item in items:
-            item_dest_rel = f"{dest_dir}/{item_rel}"
+        for (item_rel, item), safe_rel in zip(items, safe_item_rels, strict=True):
+            item_dest_rel = f"{dest_dir}/{safe_rel}"
             item_dir = posixpath.dirname(item_dest_rel)
             parent_href = posixpath.relpath(collection_rel, item_dir)
             kept_item_links = [
@@ -401,7 +415,7 @@ def _export_catalog_tree(
 
     stac_object["links"] = [
         {"rel": "root", "href": catalog_rel},
-        *[{"rel": "child", "href": f"{_COLLECTIONS_DIRNAME}/{cid}/{_COLLECTION_FILENAME}"} for cid in child_ids],
+        *[{"rel": "child", "href": f"{dirname_of[cid]}/{_COLLECTION_FILENAME}"} for cid in child_ids],
     ]
     validate_catalog(stac_object)
     payloads.insert(0, (catalog_rel, json.dumps(stac_object, indent=2)))
@@ -410,6 +424,46 @@ def _export_catalog_tree(
     catalog_uri = written[0]
     logger.info("Exported catalog tree: %d file(s) under %s", len(written), target)
     return stac_object, catalog_uri, collection_uris, item_uris
+
+
+def _collection_dirnames(scopes: list[Scope], warnings: list[str]) -> dict[str, str]:
+    """Folder name per collection id: the id when folder-safe, else its slug.
+
+    Raises when two collections would share one folder (e.g. ids that slugify
+    to the same name).
+    """
+
+    taken: dict[str, str] = {}
+    dirname_of: dict[str, str] = {}
+    for collection, _ in scopes:
+        collection_id = str(collection["id"])
+        dirname = safe_export_name(collection_id, fallback="collection")
+        if dirname != collection_id:
+            warnings.append(
+                f"collection id '{collection_id}' is not safe as a folder name; "
+                f"its files are exported under '{dirname}/'."
+            )
+        previous = taken.get(dirname)
+        if previous is not None:
+            raise ValueError(
+                f"Collections '{previous}' and '{collection_id}' both map to the folder "
+                f"'{dirname}/' — give them distinct ids."
+            )
+        taken[dirname] = collection_id
+        dirname_of[collection_id] = dirname
+    return dirname_of
+
+
+def _safe_item_rel(item_rel: str, dest_dir: str, warnings: list[str]) -> str:
+    """Item copy path with every path segment made export-safe (warned when changed)."""
+
+    safe_rel = "/".join(safe_export_name(segment, fallback="item") for segment in item_rel.split("/"))
+    if safe_rel != item_rel:
+        warnings.append(
+            f"item path '{dest_dir}/{item_rel}' is not safe as an export path; "
+            f"exported as '{dest_dir}/{safe_rel}'."
+        )
+    return safe_rel
 
 
 def _duplicate_collection_ids(scopes: list[Scope]) -> set[str]:
@@ -466,6 +520,14 @@ def _resolve_target(target: str, *, local_output: str | None, bucket: str | None
             "derive the default oidc-<username> bucket."
         )
     return f"s3://{bucket}/{target.lstrip('/')}"
+
+
+def _full_uri(endpoint: str, uri: str | None) -> str | None:
+    """Full https URL for an s3:// URI (like the other features return); local paths pass through."""
+
+    if uri is None or not is_s3_uri(uri):
+        return uri
+    return full_s3_url(endpoint, uri.removeprefix("s3://"))
 
 
 def _s3_connection(request: SuggestCatalogRequest) -> S3ConnectionParameters | None:
@@ -610,8 +672,7 @@ def _exc_message(exc: Exception) -> str:
 
 
 def _slugify(value: str) -> str:
-    slug = _SLUG_PATTERN.sub("-", value.lower()).strip("-")
-    return slug or "catalog"
+    return slugify(value, "catalog")
 
 
 def _propose_id(
@@ -637,7 +698,7 @@ def _propose_id(
     proposed = f"{default_username}-{slug}"
     warnings.append(
         f"id proposed from your username and title slug: '{proposed}' — it must be unique "
-        "among your catalogs (GET /v1/edito/stac/mycatalogs); EDITO adds its "
+        "among the project catalogs you own (GET /v1/edito/stac/mycatalogs); EDITO adds its "
         "infrastructure root at publish time"
     )
     return proposed

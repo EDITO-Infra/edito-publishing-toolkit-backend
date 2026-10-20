@@ -23,9 +23,8 @@ RUN uv pip install --system --no-deps . \
 	# match its own version (mounted at /handbook by ept.api.app).
 	&& mkdocs build --strict
 
-# Mount target for local_output exports (see docker-compose.yml); the bind
-# mount supplies ownership at runtime, so nothing is chowned here.
-RUN mkdir -p /app/workspace
+# Mount targets for local_output exports (see docker-compose.yml)
+RUN mkdir -p /app/workspace /app/data
 
 EXPOSE 8000
 

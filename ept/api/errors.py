@@ -279,6 +279,21 @@ def auth_problem_responses() -> dict[int | str, dict[str, Any]]:
                 }
             },
         ),
+        403: _problem_response_doc(
+            "Deployment bound to another user",
+            {
+                "instance_bound": {
+                    "summary": "Deployment already bound to another EDITO user",
+                    "value": {
+                        "type": f"{PROBLEM_BASE_URL}/deployment-bound",
+                        "title": "Deployment bound to another user",
+                        "status": 403,
+                        "detail": "This deployment is bound to another EDITO user.",
+                        "reason": "instance_bound",
+                    },
+                }
+            },
+        ),
         503: _problem_response_doc(
             "EDITO authentication service unavailable",
             {
@@ -611,6 +626,8 @@ def _problem_slug(reason: str | None, status_code: int) -> str:
             return "authentication-response-invalid"
         case "auth_config_invalid":
             return "authentication-config-invalid"
+        case "instance_bound":
+            return "deployment-bound"
         case _:
             return title_for_status(status_code).lower().replace(" ", "-")
 
@@ -632,5 +649,7 @@ def _problem_title(reason: str | None, status_code: int) -> str:
             return "Authentication response invalid"
         case "auth_config_invalid":
             return "Authentication configuration invalid"
+        case "instance_bound":
+            return "Deployment bound to another user"
         case _:
             return title_for_status(status_code)

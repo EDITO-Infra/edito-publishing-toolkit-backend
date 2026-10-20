@@ -295,8 +295,10 @@ def test_assets_target_resolution():
     assert _resolve_assets_target(_request(assets_target="zip")) == "zip"
     derived = ArcoStacItemRequest(source_uri="s3://b/prefix/item.json")
     assert _resolve_assets_target(derived) == "prefix"
-    with pytest.raises(ValueError, match="assets_target is required"):
-        _resolve_assets_target(ArcoStacItemRequest(source_uri="/local/item.json"))
+    # A link/local source with no targets falls back to the bucket root —
+    # the same folder the updated Item defaults to.
+    assert _resolve_assets_target(ArcoStacItemRequest(source_uri="/local/item.json")) == ""
+    assert _resolve_assets_target(ArcoStacItemRequest(source_uri="https://x.org/item.json")) == ""
 
 
 @unit
@@ -310,12 +312,13 @@ def test_request_validates_bucket_and_targets():
 
 
 @unit
-def test_item_output_location_is_choosable_or_in_place():
+def test_item_output_location_is_choosable_or_in_place_or_default():
     request = _request(bucket="b")
-    assert request.resolved_item_uri("s3://b/items/x.json", "x") == "s3://b/out/x.json"
+    assert request.resolved_item_uri("s3://b/items/x.json", "x", bucket="b") == "s3://b/out/x.json"
     in_place = ArcoStacItemRequest(source_uri="s3://b/items/x.json")
-    assert in_place.resolved_item_uri("s3://b/items/x.json", "x") == "s3://b/items/x.json"
-    with pytest.raises(ValueError, match="item_target is required"):
-        ArcoStacItemRequest(source_uri="/local/item.json").resolved_item_uri("/local/item.json", "i")
-    with pytest.raises(ValueError, match="bucket is required"):
-        _request().resolved_item_uri("s3://b/items/x.json", "x")
+    assert in_place.resolved_item_uri("s3://b/items/x.json", "x", bucket="b") == "s3://b/items/x.json"
+    # A link/local source with no item_target writes to the default location.
+    link = ArcoStacItemRequest(source_uri="https://x.org/item.json")
+    assert link.resolved_item_uri("https://x.org/item.json", "i", bucket="b") == "s3://b/i.json"
+    local = ArcoStacItemRequest(source_uri="/local/item.json")
+    assert local.resolved_item_uri("/local/item.json", "i", bucket="b") == "s3://b/i.json"

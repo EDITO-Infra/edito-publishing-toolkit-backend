@@ -52,6 +52,7 @@ async def post_zarr_to_stac_item(
             access_token=edito_auth.access_token,
             http_client=http_client,
             default_bucket=f"oidc-{edito_auth.username}" if edito_auth.username else None,
+            default_username=edito_auth.username,
         )
     except ValueError as exc:
         logger.warning("Zarr to STAC item rejected source=%s detail=%s", request.source_uri, exc)

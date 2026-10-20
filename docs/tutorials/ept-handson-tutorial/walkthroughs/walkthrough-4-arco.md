@@ -20,7 +20,7 @@ Works with the EPT frontend or `curl`/`python` — every step shows both.
 ## 1. DIN — NetCDF asset → Zarr
 
 **In the frontend:** *Make STAC* → **ARCO STAC Item** — `source_uri` =
-`s3://<bucket>/<workspace>/items/din/<workspace>-din.json`, `bucket` = your
+`s3://<bucket>/<workspace>/items/din/<projectid>-din.json`, `bucket` = your
 bucket, `assets_target` = `<workspace>/data/din`, leave `conversions` empty,
 tick `overwrite`. No `item_target` → in place.
 
@@ -28,7 +28,7 @@ tick `overwrite`. No `item_target` → in place.
 curl -X POST $EPT_URL/v1/arco/stac-item \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{
-    "source_uri": "s3://'$BUCKET'/'$WORKSPACE'/items/din/'$WORKSPACE'-din.json",
+    "source_uri": "s3://'$BUCKET'/'$WORKSPACE'/items/din/'$PROJECTID'-din.json",
     "bucket": "'$BUCKET'",
     "assets_target": "'$WORKSPACE'/data/din",
     "conversions": {},
@@ -41,7 +41,7 @@ curl -X POST $EPT_URL/v1/arco/stac-item \
 
 ```python
 post("/v1/arco/stac-item",
-     source_uri=f"s3://{BUCKET}/{WORKSPACE}/items/din/{WORKSPACE}-din.json",
+     source_uri=f"s3://{BUCKET}/{WORKSPACE}/items/din/{PROJECTID}-din.json",
      bucket=BUCKET, assets_target=f"{WORKSPACE}/data/din",
      conversions={},           # the .nc asset is auto-detected
      overwrite=True, **S3)
@@ -53,7 +53,7 @@ The shipwrecks archive contains a file geodatabase. Same call as DIN, with
 an explicit `conversions` mapping (a plain `.zip` is never auto-converted):
 
 **In the frontend:** *Make STAC* → **ARCO STAC Item** — `source_uri` =
-`s3://<bucket>/<workspace>/items/heritage-shipwrecks/<workspace>-heritage-shipwrecks.json`,
+`s3://<bucket>/<workspace>/items/heritage-shipwrecks/<projectid>-heritage-shipwrecks.json`,
 `assets_target` = `<workspace>/data/heritage-shipwrecks`, `conversions` =
 `{".zip": "gdb-to-parquet"}`, tick `overwrite`.
 
@@ -62,7 +62,7 @@ an explicit `conversions` mapping (a plain `.zip` is never auto-converted):
 curl -X POST $EPT_URL/v1/arco/stac-item \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{
-    "source_uri": "s3://'$BUCKET'/'$WORKSPACE'/items/heritage-shipwrecks/'$WORKSPACE'-heritage-shipwrecks.json",
+    "source_uri": "s3://'$BUCKET'/'$WORKSPACE'/items/heritage-shipwrecks/'$PROJECTID'-heritage-shipwrecks.json",
     "bucket": "'$BUCKET'",
     "assets_target": "'$WORKSPACE'/data/heritage-shipwrecks",
     "conversions": {".zip": "gdb-to-parquet"},
@@ -76,7 +76,7 @@ curl -X POST $EPT_URL/v1/arco/stac-item \
 ```python
 post("/v1/arco/stac-item",
      source_uri=(f"s3://{BUCKET}/{WORKSPACE}/items/heritage-shipwrecks/"
-                 f"{WORKSPACE}-heritage-shipwrecks.json"),
+                 f"{PROJECTID}-heritage-shipwrecks.json"),
      bucket=BUCKET, assets_target=f"{WORKSPACE}/data/heritage-shipwrecks",
      conversions={".zip": "gdb-to-parquet"},
      overwrite=True, **S3)
@@ -88,7 +88,7 @@ The mangrove archive contains ESRI shapefiles (no `.gdb`), so it maps to
 `shp-to-parquet` — one GeoParquet file per `.shp` inside.
 
 **In the frontend:** *Make STAC* → **ARCO STAC Item** — `source_uri` =
-`s3://<bucket>/<workspace>/items/mangrove/<workspace>-mangrove.json`,
+`s3://<bucket>/<workspace>/items/mangrove/<projectid>-mangrove.json`,
 `assets_target` = `<workspace>/data/mangrove`, `conversions` =
 `{".zip": "shp-to-parquet"}`, tick `overwrite`.
 
@@ -97,7 +97,7 @@ The mangrove archive contains ESRI shapefiles (no `.gdb`), so it maps to
 curl -X POST $EPT_URL/v1/arco/stac-item \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{
-    "source_uri": "s3://'$BUCKET'/'$WORKSPACE'/items/mangrove/'$WORKSPACE'-mangrove.json",
+    "source_uri": "s3://'$BUCKET'/'$WORKSPACE'/items/mangrove/'$PROJECTID'-mangrove.json",
     "bucket": "'$BUCKET'",
     "assets_target": "'$WORKSPACE'/data/mangrove",
     "conversions": {".zip": "shp-to-parquet"},
@@ -111,7 +111,7 @@ curl -X POST $EPT_URL/v1/arco/stac-item \
 ```python
 post("/v1/arco/stac-item",
      source_uri=(f"s3://{BUCKET}/{WORKSPACE}/items/mangrove/"
-                 f"{WORKSPACE}-mangrove.json"),
+                 f"{PROJECTID}-mangrove.json"),
      bucket=BUCKET, assets_target=f"{WORKSPACE}/data/mangrove",
      conversions={".zip": "shp-to-parquet"},
      overwrite=True, **S3)

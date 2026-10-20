@@ -101,7 +101,12 @@ async def post_iso_to_stac_item(
 
     default_bucket = f"oidc-{edito_auth.username}" if edito_auth.username else None
     try:
-        return await run_in_threadpool(iso_to_stac_item, request, default_bucket)
+        return await run_in_threadpool(
+            iso_to_stac_item,
+            request,
+            default_bucket,
+            default_username=edito_auth.username,
+        )
     except HTTPException:
         raise
     except UnsafeUrlError as exc:

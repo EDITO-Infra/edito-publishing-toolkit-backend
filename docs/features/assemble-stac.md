@@ -65,6 +65,7 @@ items. Every exported object is schema-validated.
 
 ## Notes
 
+- Export names are safe: folder/file names derived from ids are slugified when the id is unsafe as a file/folder name (with a warning); ids themselves are unchanged, and two ids slugging to the same name in one folder are rejected.
 - Companion to the STAC builders: build catalogs, collections, and items with
   plain-href links, then assemble them into one linked, validated tree.
 - Use [Upload to S3](upload-s3.md) or [Transform NetCDF to Zarr](nc-to-zarr.md)

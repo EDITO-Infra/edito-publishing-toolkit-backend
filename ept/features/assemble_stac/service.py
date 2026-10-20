@@ -63,7 +63,8 @@ def assemble_stac(request: AssembleStacRequest, default_bucket: str | None = Non
         root, assemble_warnings = assemble_tree(objects)
 
         staged_dir = workdir / "stac" if s3_output else local_dir
-        report = export_tree(root, str(staged_dir), overwrite=request.overwrite)
+        export_warnings: list[str] = []
+        report = export_tree(root, str(staged_dir), overwrite=request.overwrite, warnings=export_warnings)
 
         uploaded: list[str] = []
         if s3_output:
@@ -83,7 +84,7 @@ def assemble_stac(request: AssembleStacRequest, default_bucket: str | None = Non
             for e in report.exported
         ],
         uploaded=uploaded,
-        warnings=parse_warnings + assemble_warnings,
+        warnings=parse_warnings + assemble_warnings + export_warnings,
     )
 
 

@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shutil
 import time
 from pathlib import Path
@@ -104,17 +105,51 @@ def s3_endpoint_url(params: S3ConnectionParameters | None = None) -> str | None:
     return (params.endpoint_url if params else None) or _env_value(S3_ENDPOINT_URL_ENV)
 
 
+_SAFE_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*$", re.IGNORECASE)
+_SLUG_RUN_PATTERN = re.compile(r"[^a-z0-9]+")
+
+
+def slugify(value: str, fallback: str = "output") -> str:
+    """Lowercase kebab-slug of ``value`` (non-alphanumeric runs → ``-``)."""
+
+    return _SLUG_RUN_PATTERN.sub("-", value.lower()).strip("-") or fallback
+
+
+def safe_export_name(value: str, fallback: str = "output") -> str:
+    """``value`` itself when safe as a file name / object key, else its slug.
+
+    Output names are derived from arbitrary caller input (STAC ids, file
+    stems) but must be safe on POSIX and as S3 keys: alphanumerics plus
+    ``. _ -``, starting with an alphanumeric, no ``..`` — so no path
+    separators, traversal, or shell-hostile characters.
+    """
+
+    value = value.strip()
+    if _SAFE_NAME_PATTERN.match(value) and ".." not in value:
+        return value
+    return slugify(value, fallback)
+
+
 def with_file_name(target: str, file_name: str) -> str:
     """Append the feature-decided file name to a target prefix.
 
     The caller's target names a folder/prefix; the feature owns the file name
     (e.g. ``<item_id>.json``, ``<nc-stem>.zarr``). A target whose last segment
-    contains a ``.`` is treated as the caller's explicit file path/key and is
-    returned unchanged.
+    contains a ``.`` is treated as the caller's explicit file path/key; that
+    segment goes through the same safety check as id-derived names
+    (:func:`safe_export_name`).
     """
 
     target = target.rstrip("/")
-    return target if "." in target.rsplit("/", 1)[-1] else f"{target}/{file_name}"
+    last = target.rsplit("/", 1)[-1]
+    if "." not in last:
+        return f"{target}/{file_name}"
+    stem, dot, ext = last.rpartition(".")
+    if not stem:
+        safe = safe_export_name(last, fallback="output")
+    else:
+        safe = f"{safe_export_name(stem, fallback='output')}{dot}{ext}"
+    return target if safe == last else f"{target[: -len(last)]}{safe}"
 
 
 def is_http_url(uri: str) -> bool:

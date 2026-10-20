@@ -62,7 +62,7 @@ where = ["."]
 include = ["ept*"]
 
 [tool.setuptools.package-data]
-"*" = ["feature.toml", "*.yaml"]
+"*" = ["*.toml", "*.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

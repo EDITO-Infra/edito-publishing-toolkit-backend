@@ -1,10 +1,12 @@
 """NetCDF metadata → STAC Item orchestration.
 
-Pipeline: resolve the output target → summarize the source (infrastructure) →
-resolve the collection (only an explicit ``collection_id`` is attached, used
-as-is; otherwise the item is standalone and a suggestion is returned) → build
-the item (adapters) → write it (adapters). All translation lives in
-``adapters.py``.
+Pipeline: summarize the source (infrastructure) → resolve the item id
+(explicit, else the dataset's own ``id``/``identifier``/``title`` attribute
+or the source file name, namespaced with the caller's username) → resolve
+the output target → resolve the collection (only an explicit
+``collection_id`` is attached, used as-is; otherwise the item is standalone
+and a suggestion is returned) → build the item (adapters) → write it
+(adapters). All translation lives in ``adapters.py``.
 
 Output follows the toolkit convention: S3 by default —
 ``s3://<bucket>/<target>/<item_id>.json`` with ``bucket`` defaulting to the
@@ -32,6 +34,7 @@ from ept.infrastructure.services.editostacapi import EditoStacApiClient
 from ept.infrastructure.storage.s3 import (
     is_s3_uri,
     resolve_s3_storage_options,
+    safe_export_name,
     with_file_name,
 )
 
@@ -49,17 +52,18 @@ MAX_COLLECTION_PAGES = 10
 
 
 def resolve_target_uri(
-    request: NetcdfToStacItemRequest, default_bucket: str | None
+    request: NetcdfToStacItemRequest, item_id: str, default_bucket: str | None
 ) -> tuple[str, bool]:
     """Full output path plus whether it is S3 (drives storage options).
 
     S3 is the standard output: ``s3://<bucket>/<target>/<item_id>.json`` with
     the bucket defaulting to the caller's personal one. ``local_output``
     overrides with a directory on the EPT filesystem. In both cases the file
-    name is the item id + ``.json`` unless the target already ends in one.
+    name is the resolved item id + ``.json`` unless the target already ends
+    in one.
     """
 
-    file_name = f"{request.item_id or adapters.default_item_id(request.source_uri)}.json"
+    file_name = f"{safe_export_name(item_id, fallback='item')}.json"
     if request.local_output:
         return with_file_name(request.local_output, file_name), False
     bucket = request.bucket or default_bucket
@@ -83,16 +87,14 @@ async def netcdf_to_stac_item(
     access_token: str | None = None,
     http_client: httpx.AsyncClient | None = None,
     default_bucket: str | None = None,
+    default_username: str | None = None,
 ) -> NetcdfToStacItemResponse:
     """Build a STAC Item from NetCDF metadata and write it to the target."""
-    target_uri, output_is_s3 = resolve_target_uri(request, default_bucket)
-    storage_options = (
-        resolve_s3_storage_options(request)
-        if is_s3_uri(request.source_uri) or output_is_s3
-        else None
-    )
+    storage_options = resolve_s3_storage_options(request) if is_s3_uri(request.source_uri) else None
 
-    # 1. NetCDF metadata (sync, off the event loop).
+    # 1. NetCDF metadata first: the default item id prefers the dataset's own
+    #    identifier attribute, so the summary must exist before the output
+    #    path (which names the file after the id) is resolved.
     summary = await run_in_threadpool(
         summarize_netcdf,
         request.source_uri,
@@ -109,11 +111,20 @@ async def netcdf_to_stac_item(
         summary.instant,
     )
 
-    # 1.5 Fail fast on missing extents (ValueError → 400 with guidance naming
+    # 1.5 Item id: explicit, else dataset identifier/source name namespaced
+    #     with the caller's username (same scheme as the suggesters).
+    item_id = request.item_id or adapters.proposed_item_id(summary, request.source_uri, default_username)
+
+    # 2. Output target (names the file after the item id).
+    target_uri, output_is_s3 = resolve_target_uri(request, item_id, default_bucket)
+    if output_is_s3 and storage_options is None:
+        storage_options = resolve_s3_storage_options(request)
+
+    # 3. Fail fast on missing extents (ValueError → 400 with guidance naming
     #     the request fields to set) before any EDITO STAC API round-trips.
     await run_in_threadpool(adapters.resolve_extents, request, summary)
 
-    # 2. Collection: the provided one, or standalone + a suggested id (the
+    # 4. Collection: the provided one, or standalone + a suggested id (the
     #    item is never attached to a collection automatically).
     owns_client = http_client is None
     if owns_client:
@@ -126,8 +137,8 @@ async def netcdf_to_stac_item(
         if owns_client:
             await http_client.aclose()
 
-    # 3. Build (CPU) and write (I/O) — both off the event loop.
-    item = await run_in_threadpool(adapters.build_item, request, summary, collection_id)
+    # 5. Build (CPU) and write (I/O) — both off the event loop.
+    item = await run_in_threadpool(adapters.build_item, request, summary, collection_id, item_id)
     written_uri = await run_in_threadpool(
         adapters.write_item,
         item,

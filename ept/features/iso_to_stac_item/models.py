@@ -29,6 +29,14 @@ class IsoToStacItemRequest(S3ConnectionParameters):
     output the service falls back to its S3_* environment configuration.
     """
 
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            # Mirrors validate_output: S3 output (target) or local_output.
+            "anyOf": [{"required": ["target"]}, {"required": ["local_output"]}],
+        },
+    )
+
     # Redeclared optional: S3 credentials are only needed when an S3 source or
     # target is actually used.
     endpoint_url: str | None = Field(  # type: ignore[assignment]
@@ -62,6 +70,7 @@ class IsoToStacItemRequest(S3ConnectionParameters):
         ),
     )
     target: str | None = Field(
+        default=None,
         description=(
             "Destination folder or prefix within the bucket; the Item JSON "
             "name (`<item_id>.json`) is appended automatically, unless the "
@@ -73,7 +82,8 @@ class IsoToStacItemRequest(S3ConnectionParameters):
     item_id: str | None = Field(
         default=None,
         description=(
-            "Override the STAC Item id; defaults to the ISO fileIdentifier. "
+            "Override the STAC Item id. When omitted, the ISO fileIdentifier "
+            "is used, namespaced with your username — `<username>-<identifier>`. "
             "Also names the output file `<item_id>.json`."
         ),
     )
@@ -131,11 +141,15 @@ class IsoToStacItemRequest(S3ConnectionParameters):
 
     @model_validator(mode="after")
     def validate_output(self) -> IsoToStacItemRequest:
-        # target is required by the schema; it must be null exactly when the
-        # local_output override is used, so exactly one output is always set.
+        # Exactly one output is always set: S3 (target) or local_output.
         if self.local_output and self.target:
             raise ValueError(
                 "Use either S3 output (target, optionally bucket) or local_output — not both."
+            )
+        elif not self.local_output and not self.target:
+            raise ValueError(
+                "target is required: the prefix within your S3 bucket "
+                "(or use local_output to write to the EPT filesystem instead)."
             )
         return self
 

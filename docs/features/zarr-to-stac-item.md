@@ -44,7 +44,7 @@ curl --fail-with-body \
 | `bucket` | Destination S3 bucket. Defaults to your personal EDITO bucket `oidc-<username>` derived from your bearer token; project buckets are equally valid. Ignored when `local_output` is set. |
 | `local_output` | Directory on the EPT service filesystem instead of S3 (`<local_output>/<item_id>.json`, or a `.json` path to set the file name yourself). Takes precedence over `target`/`bucket`. |
 | `collection_id` | Optional. Collection id attached to the item as-is — it does not have to exist in the EDITO STAC API. When omitted (and nothing matches), the item is standalone and `suggested_collection_id` carries a vocabulary-based suggestion. |
-| `item_id` | Optional STAC Item id; defaults to the store directory name without the `.zarr` suffix. Also names the output file (`<item_id>.json`). |
+| `item_id` | Optional STAC Item id. When omitted, one is proposed: the dataset's own `id`, `identifier`, or `title` attribute (else the store directory name without the `.zarr` suffix), namespaced with your username — `<username>-<identifier>`. Also names the output file (`<item_id>.json`). |
 | `overwrite` | Default `false`; an existing item at the resolved target fails the request with 409. |
 | `decode_cf` | Default `true`; applies CF decoding (mask/scale, datetimes) when reading. |
 | `consolidated` | Optional; whether to require consolidated Zarr metadata. By default xarray auto-detects. |

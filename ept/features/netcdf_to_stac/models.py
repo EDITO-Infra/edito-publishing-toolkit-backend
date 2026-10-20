@@ -24,6 +24,21 @@ class NetcdfToStacItemRequest(S3ConnectionParameters):
     environment configuration.
     """
 
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            # Mirrors validate_output_choice / validate_temporal_pair.
+            "oneOf": [
+                {"required": ["target"]},
+                {"required": ["local_output"]},
+            ],
+            "dependentRequired": {
+                "start_datetime": ["end_datetime"],
+                "end_datetime": ["start_datetime"],
+            },
+        },
+    )
+
     # Redeclared optional: S3 credentials are only needed when an S3 source or
     # target is actually used.
     endpoint_url: str | None = Field(  # type: ignore[assignment]
@@ -93,7 +108,12 @@ class NetcdfToStacItemRequest(S3ConnectionParameters):
     )
     item_id: str | None = Field(
         default=None,
-        description="STAC Item id. Defaults to the source file name without extension.",
+        description=(
+            "STAC Item id. When omitted, one is proposed: the dataset's own "
+            "`id`, `identifier`, or `title` attribute (else the source file "
+            "name), namespaced with your username — `<username>-<identifier>`. "
+            "Also names the output file `<item_id>.json`."
+        ),
     )
     overwrite: bool = Field(default=False, description="Replace an existing item at target_uri.")
     decode_cf: bool = Field(

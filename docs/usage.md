@@ -90,7 +90,7 @@ One possible workflow is:
 
 1. [Exchange EDITO credentials for an access token](auth.md#response).
 2. [Validate your STAC metadata](features/validate-stac.md).
-3. [List the EDITO project catalogs you can publish into](features/get-my-catalogs.md).
+3. [List the EDITO project catalogs you own](features/get-my-catalogs.md).
 4. [Publish your STAC catalog](features/publish-stac.md) and [follow the publication job](features/publication-jobs.md).
 
 All features above, including STAC publication and removal, are part of the v1.0.0 release; see the [feature index](features/index.md) for the full list and detailed guides.

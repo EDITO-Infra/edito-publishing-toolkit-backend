@@ -28,7 +28,7 @@ from ept.infrastructure.services.edito_auth import (
     EditoBearerAuthError,
     validate_bearer_token,
 )
-from ept.infrastructure.storage.s3 import is_s3_uri, s3_url_to_fs
+from ept.infrastructure.storage.s3 import is_s3_uri, safe_export_name, s3_url_to_fs
 
 __all__ = ["arco_stac_item"]
 
@@ -80,7 +80,7 @@ def _run(request: ArcoStacItemRequest, bucket: str) -> ArcoStacItemResponse:
             "roles": ["data"],
         }
 
-    target_uri = request.resolved_item_uri(request.source_uri, item_id)
+    target_uri = request.resolved_item_uri(request.source_uri, item_id, bucket=bucket)
     _timed(timings, "write_item", _write_item, item, target_uri, request)
     logger.info("arco_stac_item completed item=%s stages_ms=%s", item_id, timings)
     return ArcoStacItemResponse(
@@ -104,7 +104,11 @@ def _timed(timings: dict[str, int], stage: str, fn, /, *args, **kwargs):
 
 
 def _resolve_assets_target(request: ArcoStacItemRequest) -> str:
-    """Prefix for converted outputs; explicit, else the item target, else the source folder."""
+    """Prefix for converted outputs; explicit, else the item target, else the source folder.
+
+    A link or local source with neither target set falls back to the bucket
+    root — the same folder the updated Item defaults to (`<item_id>.json`).
+    """
     if request.assets_target:
         return request.assets_target
     if request.item_target:
@@ -112,9 +116,7 @@ def _resolve_assets_target(request: ArcoStacItemRequest) -> str:
     if is_s3_uri(request.source_uri):
         bucket, _, prefix = request.source_uri[len("s3://"):].partition("/")
         return prefix.rsplit("/", 1)[0] if "/" in prefix else ""
-    raise ValueError(
-        "assets_target is required: no item_target set and the source is not an s3:// Item."
-    )
+    return ""
 
 
 # --- conversion planning -----------------------------------------------------
@@ -287,8 +289,7 @@ def _suffix(href: str) -> str:
 
 
 def _safe_name(value: str) -> str:
-    cleaned = "".join("-" if not c.isalnum() and c not in "._" else c for c in value.strip())
-    return cleaned.strip("-") or "asset"
+    return safe_export_name(value, fallback="asset")
 
 
 # --- item I/O ----------------------------------------------------------------

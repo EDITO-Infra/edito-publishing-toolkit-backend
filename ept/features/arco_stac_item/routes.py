@@ -15,17 +15,16 @@ from .service import arco_stac_item
 router = APIRouter(prefix="/v1/arco", tags=["Make STAC", "arco"])
 
 _REQUEST_EXAMPLES = {
-    "autoNetcdf": {
-        "summary": "Auto: NetCDF asset converted to a Zarr store",
+    "linkDefaultOutput": {
+        "summary": "Link in, default output: NetCDF asset converted to a Zarr store",
         "description": (
-            "The Item's NetCDF asset is detected and converted with nc-to-zarr; "
-            "a 'zarr' asset is added and the updated Item written under your "
-            "personal bucket. Converted outputs and the updated Item share "
-            "the item_target prefix."
+            "Point at any hosted STAC Item (HTTP(S) URL) — no need to stage it "
+            "on S3 first. The Item's NetCDF asset is detected and converted "
+            "with nc-to-zarr; the updated Item and converted outputs land in "
+            "your personal bucket by default."
         ),
         "value": {
-            "source_uri": "s3://oidc-<your-username>/my-metadata/my-dataset.json",
-            "item_target": "my-metadata",
+            "source_uri": "https://geo.example.org/csw-items/my-dataset.json",
             "endpoint_url": "https://minio.dive.edito.eu",
             "access_key_id": "<access_key_id from POST /v1/auth s3_credentials>",
             "secret_access_key": "<secret_access_key from POST /v1/auth s3_credentials>",
@@ -80,8 +79,10 @@ _REQUEST_EXAMPLES = {
         "typically the output of POST /v1/metadata/iso-to-stac-item), converts "
         "its data assets to ARCO formats, adds the converted assets to the "
         "Item, and writes the updated Item JSON to "
-        "`s3://<bucket>/<item_target>/<item_id>.json` (or in place for S3 "
-        "sources when item_target is omitted). Conversions are declared in the "
+        "`s3://<bucket>/<item_target>/<item_id>.json`, or in place for S3 "
+        "sources when item_target is omitted — a link or local source with no "
+        "targets is written to the default location "
+        "`s3://<bucket>/<item_id>.json`. Conversions are declared in the "
         "feature's conversions.toml: NetCDF assets (application/x-netcdf, "
         ".nc/.nc4/.cdf, OPeNDAP/DAP URLs) auto-convert with nc-to-zarr; "
         ".gdb/.gdb.zip assets with gdb-to-parquet. Plain .zip assets are "

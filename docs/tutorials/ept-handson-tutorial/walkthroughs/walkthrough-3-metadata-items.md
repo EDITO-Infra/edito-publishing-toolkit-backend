@@ -21,11 +21,11 @@ run it twice, once per record:
 
 - **Mangrove:** `source_uri` =
   `https://emodnet.ec.europa.eu/geonetwork/srv/api/records/0eeaeb31-c68b-4f1a-93d5-21f8134e5008/formatters/xml`,
-  `item_id` = `<workspace>-mangrove`, `bucket` = your bucket, `target` =
+  `item_id` = `<projectid>-mangrove`, `bucket` = your bucket, `target` =
   `<workspace>/items/mangrove`
 - **Shipwrecks:** `source_uri` =
   `https://emodnet.ec.europa.eu/geonetwork/srv/api/records/e965088b-a265-4517-84df-c49b156af8a7/formatters/xml`,
-  `item_id` = `<workspace>-heritage-shipwrecks`, same `bucket`, `target` =
+  `item_id` = `<projectid>-heritage-shipwrecks`, same `bucket`, `target` =
   `<workspace>/items/heritage-shipwrecks`
 
 Both times: the S3 fields from your login, tick `overwrite`.
@@ -35,7 +35,7 @@ curl -X POST $EPT_URL/v1/metadata/iso-to-stac-item \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{
     "source_uri": "https://emodnet.ec.europa.eu/geonetwork/srv/api/records/0eeaeb31-c68b-4f1a-93d5-21f8134e5008/formatters/xml",
-    "item_id": "'$WORKSPACE'-mangrove",
+    "item_id": "'$PROJECTID'-mangrove",
     "bucket": "'$BUCKET'", "target": "'$WORKSPACE'/items/mangrove",
     "endpoint_url": "https://minio.dive.edito.eu",
     "access_key_id": "'$S3_KEY'", "secret_access_key": "'$S3_SECRET'",
@@ -56,15 +56,18 @@ RECORDS = {"mangrove": "0eeaeb31-c68b-4f1a-93d5-21f8134e5008",
 for name, uuid in RECORDS.items():
     post("/v1/metadata/iso-to-stac-item",
          source_uri=f"https://emodnet.ec.europa.eu/geonetwork/srv/api/records/{uuid}/formatters/xml",
-         item_id=f"{WORKSPACE}-{name}",
+         item_id=f"{PROJECTID}-{name}",
          bucket=BUCKET, target=f"{WORKSPACE}/items/{name}",
          overwrite=True, **S3)
 ```
 
 Notes:
 
-- `item_id` defaults to the ISO fileIdentifier; workspace-unique ids avoid
-  publish-time collisions.
+- `item_id` is optional: when you leave it out, EPT proposes one from the
+  ISO `fileIdentifier`, namespaced with your username. This walkthrough sets
+  it explicitly with the project prefix (`<projectid>-…` — your project
+  short name, which must be unique) so the file names stay predictable and
+  project-scoped across the session.
 - `collection_id` is optional — the Collection step stamps it, with the
   links, on the item copies; the catalog step nests Items inside their
   Collection (EDITO rejects Items that sit directly under a Catalog).

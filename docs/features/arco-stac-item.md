@@ -51,10 +51,12 @@ A plain `.zip` is ambiguous and is never auto-converted — map it explicitly.
 
 - **Updated Item** — `item_target`: the Item JSON is written to
   `s3://<bucket>/<item_target>/<item_id>.json`. Omit `item_target` to replace
-  the Item at its source location in place (S3 sources only).
+  the Item at its source location in place (S3 sources only); for a link or
+  local source the updated Item is written to the default location
+  `s3://<bucket>/<item_id>.json` (bucket root).
 - **Converted assets** — `assets_target`: all conversion outputs land under
   this prefix (per-asset targets are planned). Defaults to `item_target`
-  when set, else to the source Item's folder.
+  when set, else to the source Item's folder (S3 sources) or the bucket root.
 
 Each converted asset is added to the Item under its declared asset key
 (`zarr`, `parquet`, or the source key for `upload`) with `roles: ["data"]`;
@@ -69,14 +71,23 @@ new suffixes on every re-run.
 
 | Field | Meaning |
 | --- | --- |
-| `source_uri` | The STAC Item JSON — local path, `s3://` URI, or HTTP(S) URL. |
-| `item_target` | Prefix for the updated Item JSON; omit to rewrite the source Item in place (S3 only). |
-| `assets_target` | Prefix for converted outputs; defaults to `item_target`, else the source folder. |
+| `source_uri` | The STAC Item JSON — local path, `s3://` URI, or HTTP(S) URL. A link to a hosted Item is the typical input; there is no need to stage it on S3 first. |
+| `item_target` | Prefix for the updated Item JSON; omit to rewrite the source Item in place (S3 only) or write the updated Item to `s3://<bucket>/<item_id>.json`. |
+| `assets_target` | Prefix for converted outputs; defaults to `item_target`, else the source folder (S3) or bucket root. |
 | `bucket` | Destination bucket for both outputs; defaults to `oidc-<username>` from the bearer token. |
 | `item_id` | Optional id override; defaults to the Item's existing id. |
 | `conversions` | Optional `{asset key or href substring: declared conversion key}` table. |
 | `overwrite` | Default `false`; existing outputs cause HTTP 409. |
 | `endpoint_url`, `access_key_id`, `secret_access_key`, `session_token` | Request-scoped S3 credentials from [`POST /v1/auth`](../auth.md#response); forwarded to every conversion service. Optional — the service-level `S3_*` environment is used otherwise. |
+
+The minimal payload is just the Item link — the bucket defaults to your
+personal bucket and both outputs fall back to its root:
+
+```json
+{
+  "source_uri": "https://geo.example.org/csw-items/my-dataset.json"
+}
+```
 
 ## Response
 
@@ -90,8 +101,7 @@ GeoParquet), `stage_timings_ms` per pipeline stage, and `status`.
 - `401` — bearer token missing/invalid. A valid token without a usable username (needed to derive the default bucket) fails with `422`.
 - `404` — `source_uri` not found.
 - `409` — an output exists and `overwrite` is false.
-- `422` — not a STAC Item, no usable id, missing `item_target` for a non-S3
-  source, unknown conversion key, or an asset without `href`.
+- `422` — not a STAC Item, no usable id, unknown conversion key, or an asset without `href`.
 - `502` — the source Item could not be fetched over HTTP.
 
 ## Good to know

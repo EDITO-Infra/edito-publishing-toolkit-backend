@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -34,6 +33,7 @@ from ept.infrastructure.storage.s3 import (
     full_s3_url,
     is_s3_uri,
     s3_endpoint_url,
+    slugify,
 )
 from ept.infrastructure.utils.urlguard import UnsafeUrlError
 
@@ -43,7 +43,6 @@ from .models import SuggestCollectionRequest
 logger = logging.getLogger(__name__)
 
 _WORLD_BBOX = [-180.0, -90.0, 180.0, 90.0]
-_SLUG_PATTERN = re.compile(r"[^a-z0-9]+")
 
 
 def _s3_connection(request: SuggestCollectionRequest) -> S3ConnectionParameters | None:
@@ -127,6 +126,7 @@ def suggest_collection(
             folder,
             overwrite=request.overwrite,
             s3=s3,
+            warnings=warnings,
         )
     else:
         warnings.append("links are empty: root and item links are wired by the STAC builder or assemble")
@@ -310,8 +310,7 @@ def _first_item_id(items: list[dict[str, Any]]) -> str | None:
 
 
 def _slugify(value: str) -> str:
-    slug = _SLUG_PATTERN.sub("-", value.lower()).strip("-")
-    return slug or "collection"
+    return slugify(value, "collection")
 
 
 def _propose_id(

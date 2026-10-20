@@ -107,7 +107,7 @@ def test_build_item_single_datetime_from_instant(tmp_path):
         instant=datetime(2024, 3, 15, tzinfo=UTC),
     )
 
-    item = build_item(_request(tmp_path, "s3://bucket/store.zarr"), summary, None)
+    item = build_item(_request(tmp_path, "s3://bucket/store.zarr"), summary, None, "my-item")
 
     assert item["properties"]["datetime"].startswith("2024-03-15T00:00:00")
     assert "start_datetime" not in item["properties"]
@@ -130,7 +130,7 @@ def test_build_item_requires_temporal_override_when_atemporal(tmp_path):
     )
 
     with pytest.raises(ValueError, match="start_datetime.*end_datetime"):
-        build_item(_request(tmp_path, "s3://bucket/store.zarr"), summary, None)
+        build_item(_request(tmp_path, "s3://bucket/store.zarr"), summary, None, "my-item")
 
 
 @unit
@@ -152,6 +152,35 @@ def test_default_item_id_from_store_paths():
     assert default_item_id("/data/store.zarr") == "store"
     assert default_item_id("s3://bucket/prefix/store.zarr/") == "store"
     assert default_item_id("https://example.org/stores/store.zarr") == "store"
+
+
+@unit
+def test_proposed_item_id_prefers_dataset_identifier_and_namespaces_username():
+    from ept.features.zarr_to_stac.adapters import dataset_item_id, proposed_item_id
+
+    def _summary(attrs: dict[str, str]):
+        from ept.infrastructure.formats.xarray import DatasetSummary
+
+        return DatasetSummary(
+            source="store.zarr",
+            dims={},
+            coords={},
+            variables={},
+            attrs=attrs,
+            bbox=[2.0, 50.0, 4.0, 52.0],
+            temporal=None,
+            instant=None,
+        )
+
+    summary = _summary({"id": "North Sea CTD", "title": "x"})
+    assert dataset_item_id(summary, "s3://bucket/store.zarr") == "North Sea CTD"
+    assert proposed_item_id(summary, "s3://bucket/store.zarr", "oidc-user") == "oidc-user-north-sea-ctd"
+
+    # `identifier`, then `title`, then the store name.
+    assert dataset_item_id(_summary({"identifier": "ABC-123"}), "s3://bucket/store.zarr") == "ABC-123"
+    assert dataset_item_id(_summary({"title": "Salinity Climatology"}), "s3://bucket/store.zarr") == "Salinity Climatology"
+    assert proposed_item_id(_summary({}), "s3://bucket/store.zarr", "oidc-user") == "oidc-user-store"
+    assert proposed_item_id(_summary({}), "s3://bucket/store.zarr", None) == "store"
 
 
 # ─── Output target resolution ────────────────────────────────────────────────
@@ -176,7 +205,7 @@ def _target_request(**overrides):
 def test_resolve_target_uri_appends_item_id_to_prefix():
     from ept.features.zarr_to_stac.service import resolve_target_uri
 
-    target_uri, is_s3 = resolve_target_uri(_target_request(item_id="observations"), "oidc-user")
+    target_uri, is_s3 = resolve_target_uri(_target_request(item_id="observations"), "observations", "oidc-user")
 
     assert target_uri == "s3://oidc-user/stac/items/observations.json"
     assert is_s3
@@ -188,7 +217,7 @@ def test_resolve_target_uri_target_ending_in_json_overrides_file_name():
 
     request = _target_request(item_id="observations", target="stac/custom.json", bucket="proj")
 
-    target_uri, _ = resolve_target_uri(request, "oidc-user")
+    target_uri, _ = resolve_target_uri(request, "observations", "oidc-user")
 
     assert target_uri == "s3://proj/stac/custom.json"
 
@@ -199,7 +228,7 @@ def test_resolve_target_uri_local_output_directory():
 
     request = _target_request(item_id="observations", target=None, local_output="/out/items")
 
-    target_uri, is_s3 = resolve_target_uri(request, "oidc-user")
+    target_uri, is_s3 = resolve_target_uri(request, "observations", "oidc-user")
 
     assert (target_uri, is_s3) == ("/out/items/observations.json", False)
 
@@ -209,4 +238,4 @@ def test_resolve_target_uri_requires_a_bucket():
     from ept.features.zarr_to_stac.service import resolve_target_uri
 
     with pytest.raises(ValueError, match="bucket is required"):
-        resolve_target_uri(_target_request(item_id="x"), None)
+        resolve_target_uri(_target_request(item_id="x"), "x", None)

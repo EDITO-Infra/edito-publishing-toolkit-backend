@@ -11,13 +11,18 @@ from ept.infrastructure.formats.netcdf import (
     open_netcdf,
     thredds_file_server_url,
 )
-from ept.infrastructure.formats.zarr import ZarrWriteOptions, create_zarr_store, write_zarr
+from ept.infrastructure.formats.zarr import (
+    ZarrWriteOptions,
+    create_zarr_store,
+    write_zarr,
+)
 from ept.infrastructure.services.edito_auth import S3ConnectionParameters
 from ept.infrastructure.storage.s3 import (
     full_s3_url,
     is_http_url,
     is_s3_uri,
     resolve_s3_storage_options,
+    safe_export_name,
     with_file_name,
 )
 
@@ -128,7 +133,7 @@ def _store_name(source: str, output_name: str | None) -> str:
     """Derive the Zarr store name: source file name without its NetCDF extension, with .zarr."""
 
     if output_name:
-        name = output_name
+        name = safe_export_name(output_name, fallback="store")
     else:
         if is_http_url(source):
             name = PurePosixPath(unquote(urlsplit(source).path.rstrip("/"))).name
@@ -141,6 +146,7 @@ def _store_name(source: str, output_name: str | None) -> str:
             if lower.endswith(suffix):
                 name = name[: -len(suffix)]
                 break
+        name = safe_export_name(name, fallback="store")
     return name if name.lower().endswith(".zarr") else f"{name}.zarr"
 
 

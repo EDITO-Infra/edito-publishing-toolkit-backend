@@ -133,7 +133,24 @@ class SuggestCollectionRequest(BaseModel):
         default=None, description="Temporary S3 session token for s3:// sources/targets."
     )
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            # Mirrors validate_sources_and_export: at least one source, and the
+            # S3 connection triple is all-or-none.
+            "anyOf": [
+                {"required": ["items"]},
+                {"required": ["item_links"]},
+                {"required": ["source_folder"]},
+                {"required": ["base"]},
+            ],
+            "dependentRequired": {
+                "endpoint_url": ["access_key_id", "secret_access_key"],
+                "access_key_id": ["endpoint_url", "secret_access_key"],
+                "secret_access_key": ["endpoint_url", "access_key_id"],
+            },
+        },
+    )
 
     @field_validator("items")
     @classmethod

@@ -23,6 +23,14 @@ class NetcdfToZarrRequest(S3ConnectionParameters):
     its S3_* environment configuration.
     """
 
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            # Mirrors validate_output: S3 output (target) or local_output.
+            "anyOf": [{"required": ["target"]}, {"required": ["local_output"]}],
+        },
+    )
+
     # Redeclared optional: S3 credentials are only needed when an S3 source or
     # target is actually used.
     endpoint_url: str | None = Field(  # type: ignore[assignment]

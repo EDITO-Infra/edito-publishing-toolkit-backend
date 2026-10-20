@@ -19,7 +19,12 @@ from typing import Any
 
 import pystac
 
-from ept.infrastructure.formats.stac import StacObjectType, geometry_bbox, get_stac_object_type
+from ept.infrastructure.formats.stac import (
+    StacObjectType,
+    geometry_bbox,
+    get_stac_object_type,
+)
+from ept.infrastructure.formats.stac.pystac_export import assign_safe_hrefs
 
 __all__ = ["ExportReport", "ExportedObject", "StacObject", "assemble_tree", "export_tree"]
 
@@ -514,21 +519,25 @@ def export_tree(
     target_dir: str,
     *,
     overwrite: bool = True,
+    warnings: list[str] | None = None,
 ) -> ExportReport:
     """Save the pystac tree into ``target_dir`` and report every written file.
 
     Layout (pystac self-contained): the root object goes to ``catalog.json``
     (or ``collection.json`` for a collection root) at the target root; each
     child goes to ``<child-id>/collection.json``, each item to
-    ``<parent-path>/<item-id>/<item-id>.json``; all internal links are
-    relative. Schema validation is the caller's concern — each exported
-    object's parsed content is in the report.
+    ``<parent-path>/<item-id>/<item-id>.json``. Ids used for folders/file
+    names are slugified when unsafe (with a warning); ids themselves are
+    never changed, and two ids slugging to the same name in one folder are
+    rejected. All internal links are relative. Schema validation is the
+    caller's concern — each exported object's parsed content is in the
+    report.
     """
     export_path = Path(target_dir).resolve()
     if not overwrite and any(export_path.glob("*.json")):
         raise FileExistsError(f"{export_path} contains STAC JSON and overwrite=false")
 
-    root.normalize_hrefs(str(export_path))
+    assign_safe_hrefs(root, export_path, warnings if warnings is not None else [])
     root.save(catalog_type=pystac.CatalogType.SELF_CONTAINED)
     root_path = Path(root.self_href).relative_to(export_path).as_posix()
 
