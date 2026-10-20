@@ -9,6 +9,8 @@ import httpx
 
 from ept.infrastructure.storage.s3 import (
     S3_PUT_CHUNK_BYTES,
+    full_remote_url,
+    full_s3_url,
     is_http_url,
     put_to_s3,
     resolve_s3_storage_options,
@@ -43,7 +45,10 @@ def upload_s3(request: UploadS3Request, default_bucket: str | None = None) -> Up
     bucket = _resolve_bucket(request, default_bucket)
     source_name = None if request.output_name else _source_name(request.source)
     output_name = request.output_name or source_name
-    target_uri = f"s3://{bucket}/{request.target}/{output_name}"
+    storage_options: dict[str, Any] = resolve_s3_storage_options(request)
+    target_uri = full_s3_url(
+        storage_options.get("endpoint_url"), f"{bucket}/{request.target}/{output_name}"
+    )
     logger.info(
         "Starting upload_s3 feature source=%s target=%s recursive=%s overwrite=%s",
         request.source,
@@ -53,10 +58,10 @@ def upload_s3(request: UploadS3Request, default_bucket: str | None = None) -> Up
     )
     uploaded = upload_to_s3(
         request.source,
-        target_uri,
+        f"s3://{bucket}/{request.target}/{output_name}",
         recursive=request.recursive,
         overwrite=request.overwrite,
-        storage_options=resolve_s3_storage_options(request),
+        storage_options=storage_options,
     )
     logger.info(
         "Completed upload_s3 feature source=%s target=%s uploaded=%d",
@@ -81,11 +86,12 @@ def upload_to_s3(
     overwrite: bool = False,
     storage_options: dict[str, Any] | None = None,
 ) -> list[str]:
-    """Upload a local file or directory (or HTTP(S) URL) and return the written S3 URIs.
+    """Upload a local file or directory (or HTTP(S) URL) and return full https URLs.
 
     ``target_uri`` must be a full ``s3://bucket/key`` URI and ``storage_options``
     must already be resolved, e.g. via
-    :func:`ept.infrastructure.storage.s3.resolve_s3_storage_options`.
+    :func:`ept.infrastructure.storage.s3.resolve_s3_storage_options`. Returned
+    URLs are ``<endpoint>/bucket/key`` when the endpoint is known, else ``s3://``.
     """
 
     logger.info(
@@ -97,11 +103,15 @@ def upload_to_s3(
     )
 
     fs, target_path = s3_url_to_fs(target_uri, storage_options=storage_options or {})
+
+    def public_urls(uris: list[str]) -> list[str]:
+        return [full_remote_url(fs, uri.removeprefix("s3://")) for uri in uris]
+
     if is_http_url(source_path):
         uploaded = _upload_http_source(fs, source_path, target_path, overwrite=overwrite)
         log_s3_location("Uploaded", source_path, target_path, storage_options=storage_options)
         logger.info("Finished S3 upload source=%s uploaded=%d", source_path, len(uploaded))
-        return uploaded
+        return public_urls(uploaded)
 
     source = Path(source_path)
     if not source.exists():
@@ -136,7 +146,7 @@ def upload_to_s3(
         log_s3_location("Uploaded", local_path.name, remote_path, storage_options=storage_options)
         uploaded.append(s3_uri)
     logger.info("Finished S3 upload source=%s uploaded=%d", source_path, len(uploaded))
-    return uploaded
+    return public_urls(uploaded)
 
 
 def iter_upload_targets(source: Path, target_path: str) -> list[tuple[Path, str]]:
@@ -299,19 +309,11 @@ def log_s3_location(
     storage_options: dict[str, Any] | None = None,
 ) -> None:
     s3_uri = f"s3://{remote_path}"
-    http_url = s3_http_url(remote_path, storage_options=storage_options)
+    http_url = full_s3_url((storage_options or {}).get("endpoint_url"), remote_path)
     if http_url == s3_uri:
         logger.info("%s %s | %s", action, label, s3_uri)
     else:
         logger.info("%s %s | %s | %s", action, label, s3_uri, http_url)
-
-
-def s3_http_url(remote_path: str, *, storage_options: dict[str, Any] | None = None) -> str:
-    endpoint_url = str((storage_options or {}).get("endpoint_url") or "").rstrip("/")
-    bucket, _, object_key = remote_path.partition("/")
-    if not endpoint_url or not object_key:
-        return f"s3://{remote_path}"
-    return f"{endpoint_url}/{quote(bucket)}/{quote(object_key, safe='/')}"
 
 
 def _resolve_bucket(request: UploadS3Request, default_bucket: str | None) -> str:

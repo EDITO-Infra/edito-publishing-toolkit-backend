@@ -180,12 +180,13 @@ def test_bearer_token_is_validated_against_keycloak_claims(monkeypatch):
             assert self.url == "https://auth.test/auth/realms/datalab/protocol/openid-connect/certs"
             return FakeSigningKey()
 
-    def fake_decode(token: str, key: str, *, algorithms: list[str], issuer: str, options: dict) -> dict:
+    def fake_decode(token: str, key: str, *, algorithms: list[str], issuer: str, options: dict, leeway: int = 0) -> dict:
         """Return validated claims after asserting JWT decode inputs."""
         assert token == "valid-token"
         assert key == "public-key"
         assert algorithms == ["RS256", "RS512"]
         assert issuer == "https://auth.test/auth/realms/datalab"
+        assert leeway == 10
         assert options["verify_aud"] is False
         return {
             "sub": "subject-1",
@@ -226,10 +227,11 @@ def test_bearer_validation_derives_issuer_from_configured_issuer(monkeypatch):
             assert self.url == "https://auth.configured.test/auth/realms/datalab/protocol/openid-connect/certs"
             return FakeSigningKey()
 
-    def fake_decode(token: str, key: str, *, algorithms: list[str], issuer: str, options: dict) -> dict:
-        """Return claims after asserting the issuer derived from the token URL."""
+    def fake_decode(token: str, key: str, *, algorithms: list[str], issuer: str, options: dict, leeway: int = 0) -> dict:
+        """Return claims after asserting the derived JWKS URL and clock leeway."""
         assert token == "valid-token"
         assert key == "public-key"
+        assert leeway == 10
         assert issuer == "https://auth.configured.test/auth/realms/datalab"
         return {
             "sub": "subject-1",

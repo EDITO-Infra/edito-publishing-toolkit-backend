@@ -1,6 +1,6 @@
 # Get my catalogs
 
-List the IDs of the EDITO STAC project catalogs available to the authenticated user. Use it to find the `catalog_id` values accepted by the [publish](publish-stac.md) and [remove](remove-stac.md) features.
+List the IDs of the EDITO STAC project catalogs owned by the authenticated user. Use it to find the `catalog_id` values accepted by the [publish](publish-stac.md) and [remove](remove-stac.md) features.
 
 ## Endpoint
 
@@ -72,10 +72,11 @@ with (workspace / "catalog-ids.json").open("w", encoding="utf-8") as output:
 
 ## Response
 
-The endpoint retrieves the user's typed catalog records from the EDITO STAC API and returns the `id` values beginning with `projects/` as an array of strings.
+The endpoint retrieves the user's catalog records from the EDITO STAC API's `GET /users/{username}/catalogs`, which only returns catalogs **the user owns**, and returns the `id` values beginning with `projects/` as an array of strings.
 
 ## Good to know
 
+- An empty response (`[]`) simply means you have not created any project catalogs yet — this is normal for new accounts. The upstream endpoint only lists catalogs you own: catalogs shared with you by other owners do not appear.
 - The `catalog_id` field of the publish and remove requests accepts these IDs:
   - To publish under a project catalog, pass `projects/{project-id}`.
   - To remove a catalog, pass an ID such as `projects/{project-id}/catalog-1` or `projects/{project-id}/catalog-1/catalog-2`.

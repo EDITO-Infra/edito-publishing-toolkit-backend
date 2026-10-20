@@ -9,7 +9,9 @@ depends_on = []
 requires = ["fastapi", "httpx", "pydantic-settings", "stac-valid", "jsonschema"]
 
 [entrypoints]
-python = ["ept.features.validate_stac.service:validate_stac"]
+python = [
+  "ept.features.validate_stac.service:validate_stac",
+]
 
 [api]
 router = "ept.features.validate_stac.routes:router"

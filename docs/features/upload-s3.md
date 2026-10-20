@@ -54,6 +54,7 @@ curl --fail-with-body \
 | `source` | The resource to upload — type is auto-detected: an `http://` or `https://` URL is streamed from the remote host; anything else is a file or directory on the EPT service filesystem (the server, not the API caller's computer; no multipart file content). |
 | `bucket` | Optional. Defaults to your personal EDITO bucket `oidc-<username>`, derived from your bearer token. Project buckets you can access (typically `project-<projectid>`) are equally valid. |
 | `target` | Destination folder or prefix inside the bucket, such as `my-uploads`. Do not include `s3://bucket` or the source filename — EPT appends the filename from the source automatically, producing `s3://<bucket>/my-uploads/input.nc` in the examples. For a local directory, EPT appends the directory name and uploads its files below it. |
+| `output_name` | Optional override for the object (or top-level folder) name appended to `target`; a single path segment, no `/`. |
 | `recursive` | Default `true`. Required for local directories. |
 | `overwrite` | Default `false`; existing objects cause the operation to fail. |
 | `endpoint_url`, `access_key_id`, `secret_access_key`, `session_token` | S3 connection parameters from the `s3_credentials` object returned by [`POST /v1/auth`](../auth.md#response). The STS `expiration` is response metadata, not a connection parameter. Credentials are request-scoped: they do not inherit an ambient AWS profile and are not installed into the EPT process environment. |
@@ -64,15 +65,15 @@ curl --fail-with-body \
 {
   "bucket": "oidc-alice",
   "source": "https://data.example.org/input.nc",
-  "target_uri": "s3://oidc-alice/my-uploads/input.nc",
+  "target_uri": "https://minio.dive.edito.eu/oidc-alice/my-uploads/input.nc",
   "uploaded": [
-    "s3://oidc-alice/my-uploads/input.nc"
+    "https://minio.dive.edito.eu/oidc-alice/my-uploads/input.nc"
   ],
   "status": "completed"
 }
 ```
 
-The `bucket` field confirms where the upload landed (defaulted or explicit), and `uploaded` contains every written object URI.
+The `bucket` field confirms where the upload landed (defaulted or explicit), and `uploaded` contains every written object. `target_uri`/`uploaded` are full `https://` URLs when `endpoint_url` is known, `s3://` URIs otherwise.
 
 ## Good to know
 

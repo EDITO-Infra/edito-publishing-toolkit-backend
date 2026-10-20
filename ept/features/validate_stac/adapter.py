@@ -387,9 +387,12 @@ def validate_batch(
         nodes[item.url] = node
 
         # ── Per-object log ───────────────────────────────────────
-        # One self-contained line per object: the INFO level shows the
-        # validate outcome for every object at default LOG_LEVEL; DEBUG
-        # additionally shows the per-fetch/RESOLVED wire steps.
+        # One self-contained line per object. DEBUG only: a large catalog
+        # would otherwise flood the monitoring log store (retention 200000
+        # rows) and evict run-lifecycle lines like "Run submitted".
+        # VALIDATE FAILED stays at WARNING — invalid objects are actionable
+        # and rare enough not to flood (honey: a catalog with more invalid
+        # objects than the capacity can still evict).
         if is_valid:
             logger.debug(
                 "VALIDATE OK: %s [%s] id=%r depth=%d schema=%.4fs edito=%.4fs issues=%d",

@@ -13,6 +13,7 @@ from fastapi import APIRouter, Form, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 
 from ept.api.errors import auth_problem_responses
+from ept.api.owner_binding import INSTANCE_BOUND, check_owner, subject_from_token
 from ept.infrastructure.services.edito_auth import (
     EditoAuthResponse,
     EditoBearerAuthError,
@@ -73,8 +74,20 @@ async def auth_route(request: Annotated[EditoAuthForm, Form()]) -> EditoAuthResp
     try:
         if isinstance(request, EditoRefreshAuthForm):
             token_response = await exchange_refresh_token(request.refresh_token)
-            return EditoAuthResponse(**token_response.model_dump(), s3_credentials=None)
-        return await exchange_auth_credentials(request.username, request.password)
+            response = EditoAuthResponse(**token_response.model_dump(), s3_credentials=None)
+        else:
+            response = await exchange_auth_credentials(request.username, request.password)
+        subject, username = subject_from_token(response.access_token)
+        if check_owner(subject, username) == INSTANCE_BOUND:
+            logger.warning("API auth request rejected reason=%s grant_type=%s", INSTANCE_BOUND, grant_type)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "reason": INSTANCE_BOUND,
+                    "message": "This deployment is bound to another EDITO user.",
+                },
+            )
+        return response
     except EditoBearerAuthError as exc:
         logger.warning("API auth request failed grant_type=%s reason=%s", grant_type, exc.reason)
         if exc.reason == "auth_unavailable":

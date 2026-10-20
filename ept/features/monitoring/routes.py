@@ -20,11 +20,11 @@ router = APIRouter(prefix="/v1/monitoring", tags=["Monitoring"])
 
 MONITORING_LOGS_DESCRIPTION = """
 Requires `Authorization: Bearer <access_token>`. Returns the most recent
-structured log events held in the API process's in-memory ring buffer, newest
-first. Filter by minimum `level`, `logger` name prefix, `event` tag, `since`
-time, and free-text `q`. The buffer is process-local: it resets on restart and
-is not shared across workers; the persistent record remains in the rotating log
-file (`API_LOG`).
+structured log events from the monitoring store (a local SQLite database next
+to the API log), newest first. Filter by minimum `level`, `logger` name
+prefix, `event` tag, `since` time, and free-text `q`. The store survives
+restarts but is not shared between workers; the complete unpruned record
+remains in the rotating log file (`API_LOG`).
 """
 
 MONITORING_STATUS_DESCRIPTION = """

@@ -1,0 +1,26 @@
+[feature]
+key = "stac.suggest_collection"
+release = "1.1.0"
+title = "Suggest STAC Collection from items"
+description = "Derive a STAC Collection from a set of items and optionally export it as a complete, self-contained collection folder. Items come from inline JSON, item_links (fetched server-side), or a source_folder (local or s3:// prefix). Step-wise: items are gathered and schema-validated; the extent is the union of the items' bboxes/datetimes; licenses are collected via SPDX matching (distinct licenses listed under 'licenses'); keywords are unioned; the id is proposed from the title (or base id) plus the caller's username so it is unique and flat. Without target the suggested JSON feeds the STAC Collection builder form; with target (S3 prefix or local folder) the items are attached and the tree (collection.json + item files) is written; a source_folder always exports, re-linking its item files in place — the folder is a valid assemble-stac source for catalog stitching and publication."
+depends_on = []
+
+[package]
+requires = ["fastapi", "pydantic-settings", "httpx", "pystac", "fsspec", "s3fs"]
+
+[entrypoints]
+python = ["ept.features.stac_suggest_collection.service:suggest_collection"]
+
+[api]
+router = "ept.features.stac_suggest_collection.routes:router"
+
+[[api.routes]]
+method = "POST"
+path = "/v1/stac/suggest/collection"
+summary = "Suggest a STAC Collection from items"
+request_model = "ept.features.stac_suggest_collection.models:SuggestCollectionRequest"
+response_model = "ept.features.stac_suggest_collection.models:SuggestCollectionResponse"
+
+[tests]
+unit = "tests/features/stac_suggest_collection/test_stac_suggest_collection_unit.py"
+integration = "tests/features/stac_suggest_collection/test_stac_suggest_collection_api.py"

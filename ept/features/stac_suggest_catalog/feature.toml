@@ -1,0 +1,26 @@
+[feature]
+key = "stac.suggest_catalog"
+release = "1.1.0"
+title = "Suggest STAC Catalog from collections"
+description = "Derive a STAC Catalog from a set of collections (inline JSON, collection_links URLs/URIs, or a source_folder of self-contained collection trees) or an existing base catalog: the id is proposed from the title (or base id) plus the caller's username so it is unique and flat, keywords are unioned and providers merged from the collections. Preview mode returns schema-validated JSON for the STAC Catalog builder; assemble mode (source_folder, or collection_links with a target) also exports a complete publishable tree — catalog.json with relative child links, each collection copied under collections/<id>/ with links re-pointed at the catalog."
+depends_on = []
+
+[package]
+requires = ["fastapi", "pydantic-settings"]
+
+[entrypoints]
+python = ["ept.features.stac_suggest_catalog.service:suggest_catalog"]
+
+[api]
+router = "ept.features.stac_suggest_catalog.routes:router"
+
+[[api.routes]]
+method = "POST"
+path = "/v1/stac/suggest/catalog"
+summary = "Suggest a STAC Catalog from collections"
+request_model = "ept.features.stac_suggest_catalog.models:SuggestCatalogRequest"
+response_model = "ept.features.stac_suggest_catalog.models:SuggestCatalogResponse"
+
+[tests]
+unit = "tests/features/stac_suggest_catalog/test_stac_suggest_catalog_unit.py"
+integration = "tests/features/stac_suggest_catalog/test_stac_suggest_catalog_api.py"

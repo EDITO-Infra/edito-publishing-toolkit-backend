@@ -26,11 +26,12 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shutil
 import time
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 from s3fs import S3FileSystem
 
@@ -94,6 +95,63 @@ def is_s3_uri(uri: str) -> bool:
     return uri.lower().startswith("s3://")
 
 
+def s3_endpoint_url(params: S3ConnectionParameters | None = None) -> str | None:
+    """Endpoint URL from explicit params or the S3_*/AWS_* environment; None when unset.
+
+    Unlike :func:`resolve_s3_storage_options`, this never requires credentials —
+    use it when only the endpoint is needed (e.g. to render full https:// URLs).
+    """
+
+    return (params.endpoint_url if params else None) or _env_value(S3_ENDPOINT_URL_ENV)
+
+
+_SAFE_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*$", re.IGNORECASE)
+_SLUG_RUN_PATTERN = re.compile(r"[^a-z0-9]+")
+
+
+def slugify(value: str, fallback: str = "output") -> str:
+    """Lowercase kebab-slug of ``value`` (non-alphanumeric runs → ``-``)."""
+
+    return _SLUG_RUN_PATTERN.sub("-", value.lower()).strip("-") or fallback
+
+
+def safe_export_name(value: str, fallback: str = "output") -> str:
+    """``value`` itself when safe as a file name / object key, else its slug.
+
+    Output names are derived from arbitrary caller input (STAC ids, file
+    stems) but must be safe on POSIX and as S3 keys: alphanumerics plus
+    ``. _ -``, starting with an alphanumeric, no ``..`` — so no path
+    separators, traversal, or shell-hostile characters.
+    """
+
+    value = value.strip()
+    if _SAFE_NAME_PATTERN.match(value) and ".." not in value:
+        return value
+    return slugify(value, fallback)
+
+
+def with_file_name(target: str, file_name: str) -> str:
+    """Append the feature-decided file name to a target prefix.
+
+    The caller's target names a folder/prefix; the feature owns the file name
+    (e.g. ``<item_id>.json``, ``<nc-stem>.zarr``). A target whose last segment
+    contains a ``.`` is treated as the caller's explicit file path/key; that
+    segment goes through the same safety check as id-derived names
+    (:func:`safe_export_name`).
+    """
+
+    target = target.rstrip("/")
+    last = target.rsplit("/", 1)[-1]
+    if "." not in last:
+        return f"{target}/{file_name}"
+    stem, dot, ext = last.rpartition(".")
+    if not stem:
+        safe = safe_export_name(last, fallback="output")
+    else:
+        safe = f"{safe_export_name(stem, fallback='output')}{dot}{ext}"
+    return target if safe == last else f"{target[: -len(last)]}{safe}"
+
+
 def is_http_url(uri: str) -> bool:
     parsed = urlsplit(uri)
     return parsed.scheme.lower() in {"http", "https"} and bool(parsed.netloc)
@@ -110,10 +168,12 @@ def resolve_s3_storage_options(
     """
 
     logger.info("Resolving S3 storage options params=%s", params is not None)
+    # Params may carry explicit credentials per field (request models redeclare
+    # them optional); an unset field falls back to the S3_* environment.
     options: dict[str, object] = {
-        "key": params.access_key_id if params else _env_value(S3_ACCESS_KEY_ID_ENV),
-        "secret": params.secret_access_key if params else _env_value(S3_SECRET_KEY_ENV),
-        "endpoint_url": params.endpoint_url if params else _env_value(S3_ENDPOINT_URL_ENV),
+        "key": (params.access_key_id if params else None) or _env_value(S3_ACCESS_KEY_ID_ENV),
+        "secret": (params.secret_access_key if params else None) or _env_value(S3_SECRET_KEY_ENV),
+        "endpoint_url": (params.endpoint_url if params else None) or _env_value(S3_ENDPOINT_URL_ENV),
         "client_kwargs": {"region_name": _env_value(S3_REGION_ENV)},
         # Without explicit timeouts aiobotocore waits indefinitely and s3fs's
         # own retry logic does not cover botocore-level connection failures
@@ -216,12 +276,24 @@ def put_to_s3(
     s3_uri = f"s3://{remote_path}"
     if is_http_url(str(source)):
         return _put_s3_url(fs, str(source), remote_path, overwrite=overwrite)
-    logger.info("Uploading S3 object source=%s target=%s overwrite=%s", source, s3_uri, overwrite)
+    logger.info(
+        "Uploading S3 object source=%s target=%s full=%s overwrite=%s",
+        source,
+        s3_uri,
+        full_remote_url(fs, remote_path),
+        overwrite,
+    )
     if not overwrite and _target_exists(fs, remote_path):
         logger.warning("S3 upload target already exists target=%s", s3_uri)
         raise FileExistsError(f"Target already exists: {s3_uri}. Set overwrite=true to replace it.")
     fs.put_file(str(source), remote_path, chunksize=chunksize, max_concurrency=max_concurrency)
-    logger.info("Uploaded S3 object source=%s target=%s bytes=%d", source, s3_uri, Path(source).stat().st_size)
+    logger.info(
+        "Uploaded S3 object source=%s target=%s full=%s bytes=%d",
+        source,
+        s3_uri,
+        full_remote_url(fs, remote_path),
+        Path(source).stat().st_size,
+    )
     return s3_uri
 
 
@@ -265,11 +337,33 @@ def rm_from_s3(fs: S3FileSystem, remote_paths: str | list[str]) -> list[str]:
     return deleted
 
 
+def full_s3_url(endpoint_url: str | None, bucket_key: str) -> str:
+    """Public https URL for a "bucket/key" path; falls back to the s3:// URI."""
+
+    base = str(endpoint_url or "").rstrip("/")
+    bucket, _, object_key = bucket_key.partition("/")
+    if not base or not object_key:
+        return f"s3://{bucket_key}"
+    return f"{base}/{quote(bucket)}/{quote(object_key, safe='/')}"
+
+
+def full_remote_url(fs: S3FileSystem, remote_path: str) -> str:
+    """Public https URL for a "bucket/key" path on this filesystem."""
+
+    return full_s3_url(getattr(fs, "endpoint_url", None), remote_path)
+
+
 def _put_s3_url(fs: S3FileSystem, source_url: str, remote_path: str, *, overwrite: bool) -> str:
     """Stream one HTTP(S) resource into an S3 object."""
 
     s3_uri = f"s3://{remote_path}"
-    logger.info("Uploading URL to S3 source=%s target=%s overwrite=%s", source_url, s3_uri, overwrite)
+    logger.info(
+        "Uploading URL to S3 source=%s target=%s full=%s overwrite=%s",
+        source_url,
+        s3_uri,
+        full_remote_url(fs, remote_path),
+        overwrite,
+    )
     if not overwrite and _target_exists(fs, remote_path):
         logger.warning("S3 upload target already exists target=%s", s3_uri)
         raise FileExistsError(f"Target already exists: {s3_uri}. Set overwrite=true to replace it.")
@@ -282,7 +376,14 @@ def _put_s3_url(fs: S3FileSystem, source_url: str, remote_path: str, *, overwrit
             shutil.copyfileobj(source, target)
             bytes_copied = source.tell()
     elapsed_ms = (time.perf_counter() - started) * 1000
-    logger.info("Uploaded URL to S3 source=%s target=%s bytes=%d elapsed_ms=%.0f", source_url, s3_uri, bytes_copied, elapsed_ms)
+    logger.info(
+        "Uploaded URL to S3 source=%s target=%s full=%s bytes=%d elapsed_ms=%.0f",
+        source_url,
+        s3_uri,
+        full_remote_url(fs, remote_path),
+        bytes_copied,
+        elapsed_ms,
+    )
     return s3_uri
 
 

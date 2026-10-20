@@ -12,7 +12,12 @@ from fastapi import HTTPException, Security, status, Depends
 from fastapi.concurrency import run_in_threadpool
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from ept.infrastructure.services.edito_auth import EditoBearerAuthError, EditoBearerAuth, validate_bearer_token
+from ept.api.owner_binding import INSTANCE_BOUND, check_owner
+from ept.infrastructure.services.edito_auth import (
+    EditoBearerAuth,
+    EditoBearerAuthError,
+    validate_bearer_token,
+)
 from ept.infrastructure.utils.logging import token_diagnostic
 
 
@@ -85,6 +90,20 @@ async def require_edito_bearer_auth(
             exc.reason,
             "The bearer token is not valid."
         ) from exc
+    bound_reason = check_owner(bearer_auth.subject, bearer_auth.username)
+    if bound_reason == INSTANCE_BOUND:
+        logger.warning(
+            "API auth verification failed reason=%s username_present=%s",
+            INSTANCE_BOUND,
+            bool(bearer_auth.username),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=AuthFailureDetail(
+                reason=INSTANCE_BOUND,
+                message="This deployment is bound to another EDITO user.",
+            ).__dict__,
+        )
     logger.debug(
             "API auth verification succeeded token=%s subject_present=%s username_present=%s",
             token_diagnostic(credentials.credentials),

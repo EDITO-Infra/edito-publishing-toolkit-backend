@@ -173,6 +173,25 @@ async def read_stac(
     raise AssertionError("unreachable: retry loop must return or raise")
 
 
+async def resolve_base(
+    stac_json: dict[str, Any] | None,
+    source_url: str | None,
+    *,
+    client: httpx.AsyncClient,
+    access_token: str | None = None,
+) -> dict[str, Any] | None:
+    """Resolve a builder's base object: inline ``stac_json``, else fetch
+    ``source_url`` (SSRF-guarded, bearer attached when a token is given),
+    else None. Shared by the STAC builders' fields/overlay input modes."""
+
+    if stac_json is not None:
+        return dict(stac_json)
+    if source_url is not None:
+        headers = {"Authorization": f"Bearer {access_token}"} if access_token else None
+        return await read_stac(str(source_url), client=client, headers=headers)
+    return None
+
+
 class StacObjectType(str, Enum):
     CATALOG = "catalog"
     COLLECTION = "collection"

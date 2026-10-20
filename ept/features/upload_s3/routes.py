@@ -8,7 +8,7 @@ from .models import UploadS3Request, UploadS3Response
 from .service import upload_s3
 
 
-router = APIRouter(prefix="/v1/storage/s3", tags=["Storage"])
+router = APIRouter(prefix="/v1/storage/s3", tags=["Storage & Assets", "upload", "s3"])
 
 _UPLOAD_EXAMPLES = {
     "remoteDefaultBucket": {
@@ -32,7 +32,7 @@ _UPLOAD_EXAMPLES = {
         "description": (
             "Any bucket your account can write to is valid. Browse your buckets "
             "at https://datalab.dive.edito.eu/file-explorer; project buckets are "
-            "typically named `oidc-<projectid>`."
+            "typically named `project-<projectid>`."
         ),
         "value": {
             "source": "https://data.example.org/datasets/observations-2025.nc",
@@ -74,7 +74,7 @@ _UPLOAD_EXAMPLES = {
         "other value is treated as a path on the EPT service filesystem. "
         "`bucket` defaults to your personal EDITO bucket `oidc-<username>` derived from "
         "your bearer token; other buckets your account can access (e.g. project buckets "
-        "`oidc-<projectid>`, browsable at https://datalab.dive.edito.eu/file-explorer) "
+        "`project-<projectid>`, browsable at https://datalab.dive.edito.eu/file-explorer) "
         "are equally valid. The source name is appended automatically. "
         "Requires `Authorization: Bearer <access_token>`."
     ),

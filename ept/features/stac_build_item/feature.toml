@@ -1,0 +1,26 @@
+[feature]
+key = "stac.build_item"
+release = "1.1.0"
+title = "STAC Item Builder"
+description = "Build a STAC Item from individual fields, a complete JSON object, or an existing object fetched by URL (provided fields override the base). Preview the JSON or export it to a local folder or S3; links are the standard STAC links array with plain hrefs so assemble-stac can stitch trees later."
+depends_on = []
+
+[package]
+requires = ["fastapi", "httpx", "pystac", "pydantic-settings", "fsspec", "s3fs"]
+
+[entrypoints]
+python = ["ept.features.stac_build_item.service:build_item"]
+
+[api]
+router = "ept.features.stac_build_item.routes:router"
+
+[[api.routes]]
+method = "POST"
+path = "/v1/stac/build/item"
+summary = "Build a STAC Item"
+request_model = "ept.features.stac_build_item.models:BuildItemRequest"
+response_model = "ept.features.stac_build_item.models:BuildItemResponse"
+
+[tests]
+unit = "tests/features/stac_build_item/test_build_item.py"
+integration = "tests/features/stac_build_item/test_build_item_api.py"

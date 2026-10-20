@@ -9,7 +9,7 @@ from .dependencies import REFRESH_TOKEN_OPENAPI_PARAMETER, PublishingAuthDep
 from .models import RemoveStacRequest, RemoveStacResponse
 from .service import remove_stac
 
-router = APIRouter(prefix="/v1/edito/stac", tags=["STAC Publication and Removal"])
+router = APIRouter(prefix="/v1/edito/stac", tags=["Publish STAC", "remove"])
 
 PUBLISHING_UNAVAILABLE_EXAMPLE = {
     "type": "https://api.edito-publishing-toolkit.org/problems/publication-backend-unavailable",

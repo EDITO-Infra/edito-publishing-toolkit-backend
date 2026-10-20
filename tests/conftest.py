@@ -82,6 +82,14 @@ def _reset_jwks_client_cache() -> None:
     _jwks_client.cache_clear()
 
 
+@pytest.fixture(autouse=True)
+def _isolate_owner_binding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Point instance-owner binding at a per-test state file."""
+    monkeypatch.setenv("EPT_OWNER_STATE_PATH", str(tmp_path / "owner.state"))
+
+
 @pytest.fixture(scope="session")
 def live_test_environment() -> None:
     """Load optional repository-root live-test configuration on demand."""

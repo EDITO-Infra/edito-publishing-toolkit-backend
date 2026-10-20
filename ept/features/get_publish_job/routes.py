@@ -23,7 +23,7 @@ from .models import (
 )
 from .service import get_publish_job
 
-router = APIRouter(prefix="/v1/edito/publish", tags=["Publication Jobs"])
+router = APIRouter(prefix="/v1/edito/publish", tags=["Publish STAC", "jobs"])
 
 GET_PUBLISH_JOB_DESCRIPTION = """
 Requires `Authorization: Bearer <access_token>` on every request. Returns the job

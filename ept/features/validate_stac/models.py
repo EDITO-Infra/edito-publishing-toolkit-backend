@@ -28,7 +28,7 @@ class ValidationIssue(BaseModel):
     object_type: StacObjectType
     object_id: str | None = None
     location: str = Field(..., description="URL or JSON Pointer path")
-    rule: str = Field(..., description="Rule ID, e.g., 'stac-core', 'edito-no-nested-collections'")
+    rule: str = Field(..., description="Rule ID, e.g., 'stac-core-schema', 'edito_collection_in_collection'")
     message: str
 
     model_config = {"extra": "forbid"}

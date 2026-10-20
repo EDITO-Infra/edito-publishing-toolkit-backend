@@ -12,7 +12,7 @@ LogLevelName = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 
 class LogEvent(BaseModel):
-    """One structured log event from the in-memory ring buffer."""
+    """One structured log event from the monitoring log store."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
@@ -31,7 +31,7 @@ class LogEvent(BaseModel):
 
 
 class MonitoringLogsQuery(BaseModel):
-    """Filters for querying the in-memory log buffer."""
+    """Filters for querying the monitoring log store."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
@@ -64,13 +64,13 @@ class MonitoringLogsQuery(BaseModel):
 
 
 class LogBufferInfo(BaseModel):
-    """Health of the in-memory log ring buffer."""
+    """Health of the monitoring log store."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     capacity: int = Field(description="Maximum events the buffer retains.")
     size: int = Field(description="Events currently held.")
-    dropped: int = Field(description="Oldest events evicted because the buffer was full.")
+    dropped: int = Field(description="Oldest events pruned because the retention capacity was reached.")
 
 
 class RequestCounters(BaseModel):
@@ -91,9 +91,9 @@ class MonitoringLogsResponse(BaseModel):
     events: list[LogEvent] = Field(description="Matching events, newest first.")
     matched: int = Field(description="Total buffered events matching the filters.")
     returned: int = Field(description="Number of events in this page.")
-    buffer_size: int = Field(description="Events currently held in the ring buffer.")
-    buffer_capacity: int = Field(description="Maximum events the ring buffer retains.")
-    dropped: int = Field(description="Events evicted from the buffer because it was full.")
+    buffer_size: int = Field(description="Events currently held in the log store.")
+    buffer_capacity: int = Field(description="Maximum events the log store retains.")
+    dropped: int = Field(description="Events pruned from the store because it reached capacity.")
 
 
 class MonitoringStatusResponse(BaseModel):

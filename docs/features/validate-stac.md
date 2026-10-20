@@ -12,6 +12,8 @@ Authentication: `Authorization: Bearer <access_token>`.
 
 ## Usage
 
+For catalogs large enough to risk gateway timeouts, run the same validation as a background [EPT job runner](job-runner.md) run and poll for the result instead of holding the request open.
+
 ```bash
 curl -X POST "${EPT_API_URL}/v1/stac/validate" \
   -H "Content-Type: application/json" \
@@ -70,17 +72,23 @@ You get a report. Validation problems do **not** cause an error — they are lis
 
 ```json
 {
-  "is_valid": false,
+  "root_url": "https://.../catalog.json",
+  "root_type": "catalog",
+  "stac_is_valid": false,
+  "total_objects_checked": 12,
   "summary": {
     "total_objects": 12,
     "valid_objects": 11,
     "invalid_objects": 1,
     "error_count": 1,
     "warning_count": 0,
+    "by_type": {"catalog": {"total": 1, "valid": 1, "invalid": 0}},
     "errors_by_rule": {"edito_asset_href_not_public_https": 1}
   },
   "errors": [
     {
+      "level": "error",
+      "object_type": "item",
       "object_id": "item-1",
       "location": "https://example.com/item-1.json",
       "rule": "edito_asset_href_not_public_https",
@@ -92,7 +100,7 @@ You get a report. Validation problems do **not** cause an error — they are lis
     "url": "https://.../catalog.json",
     "object_type": "catalog",
     "object_id": "root-catalog",
-    "is_valid": true,
+    "object_is_valid": true,
     "children": ["...each object below it, with its own issues..."],
     "issues": []
   }
@@ -101,7 +109,9 @@ You get a report. Validation problems do **not** cause an error — they are lis
 
 How to read it:
 
-- `is_valid` — did the top-level object itself pass? Check `summary` for the whole run.
+- `stac_is_valid` — run-level verdict: true only if no ERROR-level issue exists anywhere in the tree (warnings such as `traversal_limit` do not invalidate).
+- `validation_tree[].object_is_valid` — per-object verdict; it does not propagate from children (a valid collection stays valid even if its items are invalid).
+- `root_url` / `root_type` / `total_objects_checked` — what was scanned and how much.
 - `summary` — how many objects were checked, how many passed, and which rules were broken most often.
 - `errors` / `warnings` — every finding, with the object, its location, the rule, and a message.
 - `validation_tree` — your catalog as a tree, so you can see where each problem sits.

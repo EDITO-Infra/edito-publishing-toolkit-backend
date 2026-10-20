@@ -13,6 +13,7 @@ from typing import Any, AsyncIterator
 
 from fastapi import FastAPI, Request
 from fastapi.openapi.utils import get_openapi
+from fastapi.staticfiles import StaticFiles
 
 from ept import __version__
 from ept.infrastructure.utils.logging import sanitize_query_string
@@ -112,6 +113,10 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Start and stop process-level resources."""
     global _log_listener
 
+    root_logger = logging.getLogger()
+    previous_level = root_logger.level
+    previous_handlers = root_logger.handlers[:]
+
     _log_listener = configure_logging()
     logger.info("EPT API logging started.")
 
@@ -122,6 +127,11 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         if _log_listener is not None:
             _log_listener.stop()
             _log_listener = None
+        # configure_logging replaces root handlers/level wholesale; restore them
+        # so embedded lifecycles (TestClient in test suites) don't leak logging
+        # state into whatever runs after shutdown.
+        root_logger.handlers[:] = previous_handlers
+        root_logger.setLevel(previous_level)
 
 
 def create_app() -> FastAPI:
@@ -133,6 +143,15 @@ def create_app() -> FastAPI:
         docs_url=None,
         lifespan=lifespan,
         openapi_tags=[
+            {"name": "Transform Data", "description": "Convert data between formats: NetCDF to Zarr, ESRI GDB to GeoParquet."},
+            {"name": "Metadata Conversion", "description": "Create STAC Items from ISO19139 records, NetCDF or Zarr metadata."},
+            {"name": "Make STAC", "description": "Build, assemble and suggest STAC catalogs, collections and items."},
+            {"name": "STAC Tools", "description": "Validate, find and fetch STAC objects."},
+            {"name": "Storage & Assets", "description": "Upload files and STAC item assets to S3-compatible storage."},
+            {"name": "Publish STAC", "description": "List EDITO project catalogs, publish and remove STAC metadata, track publication jobs."},
+            {"name": "Monitoring", "description": "Buffered API log events and process status."},
+            {"name": "Authentication", "description": "EDITO API tokens and request-scoped S3 credentials."},
+            {"name": "Service", "description": "API index and service links."},
         ],
     )
 
@@ -144,6 +163,13 @@ def create_app() -> FastAPI:
 
     # Feature routers declare their own auth dependencies at the route boundary.
     include_feature_routers(app)
+
+    # Version-matched handbook (mkdocs site baked into the image) served at
+    # /handbook when present; dev checkouts without a built site skip the mount.
+    handbook_dir = Path(os.getenv("EPT_HANDBOOK_DIR", "site"))
+    if handbook_dir.is_dir():
+        app.mount("/handbook", StaticFiles(directory=handbook_dir, html=True), name="handbook")
+        app.state.handbook_url = "/handbook"
 
     register_openapi_schema(app)
 

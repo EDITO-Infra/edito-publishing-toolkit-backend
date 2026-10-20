@@ -1,5 +1,14 @@
-"""STAC format primitives: reading, traversal, search."""
+"""STAC format primitives: item construction, reading, traversal, search."""
 
+from .item import (
+    StacAssetInput,
+    StacLinkInput,
+    StacItemInput,
+    bbox_to_geometry,
+    build_item,
+    geometry_bbox,
+    validate_item,
+)
 from .read import (
     ROOT_FETCH_ATTEMPTS,
     CollectedObject,
@@ -13,23 +22,32 @@ from .read import (
     is_stac_api_catalog,
     read_stac,
     read_stac_api,
+    resolve_base,
     search_stac_api,
     static_children,
 )
 
 __all__ = [
+    "StacAssetInput",
+    "StacLinkInput",
+    "StacItemInput",
     "ROOT_FETCH_ATTEMPTS",
     "CollectedObject",
     "QueueEntry",
     "StacObjectType",
+    "bbox_to_geometry",
+    "build_item",
+    "validate_item",
     "_bfs_batches",
     "_linked_items_url",
     "_next_page_urls",
     "fetch_stac_objects",
+    "geometry_bbox",
     "get_stac_object_type",
     "is_stac_api_catalog",
     "read_stac",
     "read_stac_api",
+    "resolve_base",
     "search_stac_api",
     "static_children",
 ]

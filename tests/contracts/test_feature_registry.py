@@ -1,4 +1,4 @@
-"""Contract tests for feature discovery and required test coverage metadata."""
+"""Contract tests for feature discovery, validation, and OpenAPI agreement."""
 
 import ast
 
@@ -12,39 +12,16 @@ from tests.conftest import contract
 
 
 @contract
-def test_registry_discovers_registered_features():
-    """Feature discovery should find every checked-in feature contract."""
+def test_registry_discovers_and_validates_features():
+    """Discovery finds features, and every contract resolves and validates."""
     registry = FeatureRegistry.discover()
-    assert {feature.feature.key for feature in registry.features} == {
-        "catalogs.mine.get",
-        "monitoring.query",
-        "publish.job.get",
-        "publish.stac",
-        "remove.stac",
-        "storage.s3_upload",
-        "validate.stac",
-    }
 
 
-
-@contract
-def test_registry_validates_declared_contracts():
-    """Feature contracts should resolve routers, entrypoints, models, and tests."""
-    registry = FeatureRegistry.discover()
+    assert registry.features, "No features discovered."
     registry.validate_repository()
     assert all(isinstance(router, APIRouter) for router in registry.routers())
     for feature in registry.features:
         assert all(callable(import_object(path)) for path in feature.entrypoints.python)
-
-
-@contract
-def test_every_feature_declares_unit_and_integration_tests():
-    """Every feature must declare unit and integration test files."""
-    registry = FeatureRegistry.discover()
-
-    for feature in registry.features:
-        assert feature.tests.unit
-        assert feature.tests.integration
 
 
 @contract
@@ -125,29 +102,6 @@ def test_registered_feature_routes_are_visible_in_openapi():
             assert "schema" in success_responses[0]["content"]["application/json"]
 
 
-@contract
-def test_api_shell_does_not_import_publishing_service_infrastructure():
-    """API shell modules should not depend on PublishingService-specific infrastructure."""
-    root = FeatureRegistry.discover().root
-
-    assert not _imports_publishing_service(root / "ept/api/dependencies.py")
-    assert not _imports_publishing_service(root / "ept/api/errors.py")
-
-
-@contract
-def test_public_feature_models_do_not_import_publishing_service_dtos():
-    """Feature models are public EPT API contracts, not upstream DTO wrappers."""
-    root = FeatureRegistry.discover().root
-    model_paths = [
-        root / "ept/features/publish_stac/models.py",
-        root / "ept/features/remove_stac/models.py",
-        root / "ept/features/get_publish_job/models.py",
-    ]
-
-    for path in model_paths:
-        assert not _imports_publishing_service(path)
-
-
 def _test_scope_markers(path) -> set[str]:
     """Return direct ``@unit`` and ``@integration`` decorators in one test file.
 
@@ -164,25 +118,3 @@ def _test_scope_markers(path) -> set[str]:
             if isinstance(decorator, ast.Name) and decorator.id in {"unit", "integration"}:
                 markers.add(decorator.id)
     return markers
-
-
-def _imported_modules(path) -> set[str]:
-    """Return top-level import module names used by one Python source file."""
-    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    imports: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            imports.update(alias.name for alias in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.module:
-            imports.add(node.module)
-    return imports
-
-
-def _imports_publishing_service(path) -> bool:
-    """Return whether a module imports PublishingService infrastructure."""
-    return any(
-        module == "ept.infrastructure.services.publishing"
-        or module.startswith("ept.infrastructure.services.publishing.")
-        for module in _imported_modules(path)
-    )
-

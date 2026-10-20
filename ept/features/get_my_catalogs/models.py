@@ -4,7 +4,7 @@ from pydantic import RootModel
 
 
 class GetMyCatalogsResponse(RootModel[list[str]]):
-    """Catalog IDs available to the authenticated user."""
+    """IDs of the EDITO STAC project catalogs owned by the authenticated user."""
 
 
 __all__ = ["GetMyCatalogsResponse"]

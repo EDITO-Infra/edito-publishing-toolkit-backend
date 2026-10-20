@@ -1,9 +1,10 @@
-"""Tests for the in-memory structured log buffer and process status."""
+"""Tests for the SQLite-backed structured log store and process status."""
 
 from __future__ import annotations
 
 import logging
 
+from ept.infrastructure.utils import monitoring as monitoring_module
 from ept.infrastructure.utils.monitoring import (
     LogBufferHandler,
     get_log_buffer,
@@ -96,7 +97,9 @@ def test_get_log_buffer_is_a_process_wide_singleton():
 
 
 @unit
-def test_process_status_reports_versions_buffer_and_counters():
+def test_process_status_reports_versions_buffer_and_counters(monkeypatch, tmp_path):
+    monkeypatch.setenv("MONITORING_DB_PATH", str(tmp_path / "monitoring.db"))
+    monkeypatch.setattr(monitoring_module, "_buffer", None)
     before = process_status()["requests"]
     record_request_start()
     record_request_start()

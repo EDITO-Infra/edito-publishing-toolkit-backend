@@ -12,7 +12,7 @@ Authentication: `Authorization: Bearer <access_token>` **and** `X-EDITO-Refresh-
 
 ## Usage
 
-Once you have the catalog ID (see [Get my catalogs](get-my-catalogs.md)), use it directly in the request:
+Once you have the catalog ID of a catalog you own (see [Get my catalogs](get-my-catalogs.md)), use it directly in the request:
 
 ```bash
 curl -X POST "${EPT_API_URL}/v1/edito/stac/remove" \
@@ -49,6 +49,8 @@ print(response.json()["job_id"])
 The public request accepts only `catalog_id` — the ID of the catalog to remove, such as `projects/{project-id}/catalog-1`.
 
 ## Response
+
+Responds `202 Accepted`:
 
 ```json
 {

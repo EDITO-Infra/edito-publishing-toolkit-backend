@@ -37,7 +37,7 @@ Browse all available features in the [feature index](features/index.md).
 
 ## Versioning
 
-EPT v1.0.0 exposes its supported public contract under `/v1`. The unversioned `/` route exists only to redirect users to the API index.
+EPT v1.1.0 exposes its supported public contract under `/v1`. The unversioned `/` route exists only to redirect users to the API index.
 
 Backward-compatible additions may be made within `/v1`. Breaking changes require a new major API namespace.
 
