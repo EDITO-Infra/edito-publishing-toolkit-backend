@@ -1,17 +1,25 @@
 # Walkthrough 7 — Publish
 
-Publishing makes the validated `stac-final` tree discoverable by every EDITO
-user. Deliberate, not automatic — inspect first, then publish from the
-frontend or two API calls.
+> **A serious step — do this together with your project members.**
+> Publishing is meant for a **collaborative project STAC**, not the default
+> public one. Publishing **overwrites the contents of the target catalog**,
+> and `remove` **deletes them for every project member** — there is no undo.
+> Agree within your project who publishes, when, and into which catalog.
+
+Publishing makes the validated `stac-final` tree visible **to your project**
+in the EDITO STAC API. It does not make it public: wider visibility is a
+setting granted on request to EDITO support. Inspect first, then publish from the frontend or two API calls.
 
 ## 1. Pick your target catalog
 
-Use the `projects/…` id of the catalog you built in
-[walkthrough 6](walkthrough-6-catalog.md) — `$PROJECTID-catalog` exported to
-`stac-final/catalog.json`. That id is your target `catalog_id`.
+Pick a catalog **under `projects/` you can publish into**. A
+`$PROJECTID-catalog` id — like the one built in
+[walkthrough 6](walkthrough-6-catalog.md) — is an example, not a given: not
+every project has a catalog, and membership alone does not grant publish
+rights.
 
-`GET /v1/edito/stac/mycatalogs` only lists the project catalogs **you own**;
-an empty response just means you have not created any yet:
+`GET /v1/edito/stac/mycatalogs` lists the project catalogs **you can publish
+into**; an empty response just means none exists for you yet:
 
 ```bash
 curl -s $EPT_URL/v1/edito/stac/mycatalogs \
@@ -73,8 +81,8 @@ public.
 ## 3. Undo
 
 `POST /v1/edito/stac/remove` with the same `catalog_id` and refresh-token
-header removes what you published under that ID — destructive, use with
-care.
+header deletes the published catalog — its collections and items — for
+every project member. It undoes a publish by deleting; there is no undo.
 
 **That's the full pass** — data converted, Items built and ARCO-ified,
 Collections and Catalog assembled, validated, and live on EDITO.

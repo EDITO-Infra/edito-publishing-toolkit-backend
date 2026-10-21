@@ -674,9 +674,8 @@ catalog = post("/v1/stac/suggest/catalog",
      bucket=BUCKET, target=f"{WORKSPACE}/stac-final", overwrite=True, **S3)
 ```
 
-Validate `stac-final/catalog.json` with `validate_children`, then publish it.
-
-*(`/v1/stac/assemble` remains optional — for relocating or merging trees)*
+Validate `stac-final/catalog.json` with `validate_children` — then it is
+ready to publish.
 
 ---
 
@@ -684,19 +683,19 @@ Validate `stac-final/catalog.json` with `validate_children`, then publish it.
 
 <span class="badge">HANDS-ON · PUBLISH</span>
 
-# Make it discoverable
+# Make it discoverable — demo
 
-Publish the validated `catalog.json` into your EDITO catalog
-(`projects/…` id, e.g. `$PROJECTID-catalog`).
+Publishing will be **demoed live** — one validated `catalog.json` becomes
+discoverable in the EDITO STAC API in a queued job (`202` + job id).
 
-- A **queued job** — `202` + job id, poll until it succeeds
-- Then it is live in the EDITO STAC API
-- **Published ≠ necessarily public** — visibility of your project catalog
-  beyond your project is granted on request to EDITO support
-- Publish is deliberate: inspect the tree in the viewers first —
-  `remove` undoes it
-- `mycatalogs` lists the project catalogs you own —
-  empty just means you have not created one yet
+- Per-user catalogs under the project do **not exist yet** — today there is
+  only the shared **ept-projectsforum** project catalog
+- **Publishing overwrites the contents of the catalog you publish into** —
+  if everyone publishes into ept-projectsforum, we overwrite eachothers catalogs
+
+- So: watch the demo today — and try with your own project catalog later
+- **Removing is destructive too** — it deletes that catalog's STAC data for
+  every project member; there is no undo
 
 ---
 
