@@ -37,4 +37,4 @@ The API is available at `http://localhost:8000`, with interactive documentation 
 
 - The `Makefile` provides convenience targets (`make api-start`, `make test`, `make docs-serve`, ...) for Unix-users.
 - `make api-stop` and `make api-restart` additionally use `pkill`/`lsof` and are Unix-only.
-- For containers instead of a local install, see [Docker usage](docker-usage.md).
+- For containers instead of a local install, see [Docker usage](docker-usage.md) — prebuilt API and frontend images are on GHCR, no clone needed.

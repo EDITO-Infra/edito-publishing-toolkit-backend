@@ -12,10 +12,48 @@ start (or after a break: S3 sessions last 24 h, access tokens less). Both
 take your EDITO username/password from the environment variables
 `EDITO_USERNAME`/`EDITO_PASSWORD` when set, and prompt for them otherwise.
 
-**Get an EPT API** — the
-[service playground](https://datalab.dive.edito.eu/launcher/service-playground/edito-publishing-toolkit-service)
-(zero install), or `make api-start` / Docker locally from the
-[backend repo](https://github.com/EDITO-Infra/edito-publishing-toolkit-backend).
+**Get an EPT API** — pick one:
+
+1. **EDITO service playground** (zero install):
+   [edito-publishing-toolkit-service](https://datalab.dive.edito.eu/launcher/service-playground/edito-publishing-toolkit-service)
+2. **Clone the backend** and run it locally:
+
+    ```bash
+    git clone https://github.com/EDITO-Infra/edito-publishing-toolkit-backend
+    cd edito-publishing-toolkit-backend && make api-start   # API on :8000
+    ```
+
+    Optionally run the public frontend image against it:
+
+    ```bash
+    docker run -d --name ept-frontend -p 3000:8080 \
+      -e EPT_API_UPSTREAM=http://host.docker.internal:8000 \
+      --add-host=host.docker.internal:host-gateway \
+      ghcr.io/edito-infra/edito-publishing-toolkit-frontend:${EPT_VERSION}
+    ```
+
+3. **Pull both images** — no clone needed. Pick the newest version tag on
+   the GHCR package pages
+   ([backend](https://github.com/EDITO-Infra/edito-publishing-toolkit-backend/pkgs/container/edito-publishing-toolkit-backend),
+   [frontend](https://github.com/EDITO-Infra/edito-publishing-toolkit-frontend/pkgs/container/edito-publishing-toolkit-frontend))
+   and export it — both images are released together, so use the same tag
+   for both:
+
+    ```bash
+    export EPT_VERSION=1.1.0-beta   # example — replace with the latest applicable tag
+
+    # Backend — no env needed, defaults are baked in
+    docker run -d --name ept-api -p 8000:8000 \
+      -v ept_workspace:/app/workspace -v ept_data:/app/data \
+      ghcr.io/edito-infra/edito-publishing-toolkit-backend:${EPT_VERSION}
+
+    # Frontend — proxies /api to the backend
+    docker run -d --name ept-frontend -p 3000:8080 \
+      -e EPT_API_UPSTREAM=http://ept-api:8000 --link ept-api \
+      ghcr.io/edito-infra/edito-publishing-toolkit-frontend:${EPT_VERSION}
+    ```
+
+   Details: [Docker usage](../../docker-usage.md).
 
 **With curl** (needs `jq`):
 
@@ -91,6 +129,10 @@ Seven short guides, one capability each — every output feeds the next step:
 5. [Collections: suggest, export, make it yours](walkthroughs/walkthrough-5-collections.md)
 6. [Catalog: assemble the final tree, validate](walkthroughs/walkthrough-6-catalog.md)
 7. [Publish: into the EDITO STAC API](walkthroughs/walkthrough-7-publish.md)
+
+> After publishing: your catalog is live in the EDITO STAC API, but **not
+> necessarily public** — making it visible beyond your project requires a
+> request to EDITO support.
 
 Prefer the request level first? Read
 [End-to-end publishing](../end-to-end-publishing.md).

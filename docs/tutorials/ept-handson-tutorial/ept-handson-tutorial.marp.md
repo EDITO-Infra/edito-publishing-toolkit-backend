@@ -118,12 +118,13 @@ code against is just EPT.
 
 ## Three ways to use EPT
 
-<div class="columns" style="font-size:0.9em">
+<div class="columns" style="font-size:0.78em">
 <div>
 
 **1 — EDITO service (zero install)**
 
-Go to the datalab -> search 'publishingtoolkit' -> click 'Launch' --> choose a version  set your **resources¨** appropriately.  Then Start!  This runs the backend + frontend, ready to use:
+Datalab → Service Catalog → search `publishingtoolkit` → **Launch** → pick a
+version, set your **resources**, start. Backend + frontend, ready to use:
 
 `datalab.dive.edito.eu/launcher/service-playground/edito-publishing-toolkit-service`
 
@@ -133,16 +134,27 @@ Go to the datalab -> search 'publishingtoolkit' -> click 'Launch' --> choose a v
 git clone https://github.com/EDITO-Infra/\
   edito-publishing-toolkit-backend
 make install && make api-start
-# API on http://localhost:8000
-# or: make docker-deploy
+# API on http://localhost:8000 · or: make docker-deploy
 ```
 
 </div>
 <div>
 
-**3 — Local frontend**
+**3 — Pull the images (no clone)**
 
-Clone `edito-publishing-toolkit-frontend`, follow its README
+```bash
+# Backend
+docker run -d --name ept-api -p 8000:8000 \
+  ghcr.io/edito-infra/\
+  edito-publishing-toolkit-backend:1.1.0-beta
+
+# Frontend
+docker run -d --name ept-frontend -p 3000:8080 \
+  -e EPT_API_UPSTREAM=http://ept-api:8000 \
+  --link ept-api ghcr.io/edito-infra/\
+  edito-publishing-toolkit-frontend:1.1.0-beta
+```
+
 → `http://localhost:3000`
 
 **All three talk to the same API.**
@@ -156,27 +168,23 @@ Same tools, same results — pick per situation, switch any time.
 
 ## The frontend — every feature, no code
 
-Point your browser at the frontend (**`localhost:3000`** locally, or the service
-playground) and sign in with your **EDITO account** — tokens and S3 credentials
-are obtained and refreshed for you.
+Open the frontend — **`localhost:3000`** locally or the service playground —
+and sign in with your **EDITO account**.
 
-<div class="columns" style="font-size:0.88em">
+<div class="columns" style="font-size:0.8em">
 <div>
 
-- Every EPT capability is a **tool** in the sidebar, generated live from the
-  API's OpenAPI schema — *always in sync with the running version*
+- Every capability is a **tool** in the sidebar, generated live from the
+  OpenAPI schema — *always in sync*
 - Fill the **form**, press **Run Tool**, inspect the JSON response
-- Secrets (tokens, S3 keys) are masked and kept in your browser session only
-- **Logs** page shows what the service did on your behalf
-
-The UI will keep evolving — the *tools* it exposes are the API you'll see in
-the Python examples next.
+- Secrets (tokens, S3 keys) stay in your browser session only
+- **Logs** page shows what the service did
 
 </div>
 <div>
 
 <img src="images/ept-frontend-iso-to-stac.png"
-     style="width:100%; border:1px solid rgba(0,29,108,.15); border-radius:8px;"
+     style="width:100%; max-height:300px; object-fit:contain; border:1px solid rgba(0,29,108,.15); border-radius:8px;"
      alt="EPT frontend — Convert an ISO19139 record into a STAC Item">
 
 </div>
@@ -226,9 +234,8 @@ items → assets.
 }
 ```
 
-- **Item** = one dataset, one place, one time
-- **Collection** = group of items with shared extents/license
-- **Catalog** = the root that ties it together
+- **Item** = one dataset, one place, one time · **Collection** = group of
+  items with shared extents/license · **Catalog** = the root that ties it together
 
 ---
 
@@ -552,6 +559,8 @@ policies, MinIO clients: see the storage section of the EDITO documentation.</di
 One call converts an Item's data assets and re-exports the Item **in place**
 — converted outputs land under `data/`:
 
+<div style="font-size:0.78em">
+
 ```python
 post("/v1/arco/stac-item",
      source_uri=f"s3://{BUCKET}/{WORKSPACE}/items/din/"
@@ -561,7 +570,9 @@ post("/v1/arco/stac-item",
      overwrite=True, **S3)
 ```
 
-<div class="columns" style="font-size:0.8em">
+</div>
+
+<div class="columns" style="font-size:0.72em">
 <div>
 
 **before**
@@ -680,6 +691,8 @@ Publish the validated `catalog.json` into your EDITO catalog
 
 - A **queued job** — `202` + job id, poll until it succeeds
 - Then it is live in the EDITO STAC API
+- **Published ≠ necessarily public** — visibility of your project catalog
+  beyond your project is granted on request to EDITO support
 - Publish is deliberate: inspect the tree in the viewers first —
   `remove` undoes it
 - `mycatalogs` lists the project catalogs you own —

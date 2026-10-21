@@ -6,7 +6,35 @@ EPT can be run with Docker Compose using the configuration under `deploy/docker/
 
 Install Docker from [Docker's official website](https://www.docker.com/get-started).
 
-## Start EPT
+## Start EPT from prebuilt images (no clone)
+
+Both the API and the frontend are published on GHCR — pull and run them
+without cloning any repository:
+
+```bash
+# Backend — no env needed, defaults are baked in
+docker run -d --name ept-api -p 8000:8000 \
+  -v ept_workspace:/app/workspace -v ept_data:/app/data \
+  ghcr.io/edito-infra/edito-publishing-toolkit-backend:1.1.0-beta
+
+# Frontend — proxies /api to the backend
+docker run -d --name ept-frontend -p 3000:8080 \
+  -e EPT_API_UPSTREAM=http://ept-api:8000 --link ept-api \
+  ghcr.io/edito-infra/edito-publishing-toolkit-frontend:1.1.0-beta
+```
+
+- Frontend (UI): `http://localhost:3000` — it proxies `/api` to the backend
+- API: `http://localhost:8000` · Swagger UI: `http://localhost:8000/docs`
+
+No environment variables are required — the image bakes in the default
+service URLs (publishing service, STAC API, Keycloak, MinIO) and client ID.
+Set `EDITO_*`/`PUBLISHING_API_URL` with `-e` only to override them.
+
+The `workspace/` and `data/` mounts keep exports and the deployment's
+`data/owner.state` across container removals — same behaviour as the
+[from-source setup](#start-ept-from-source) below.
+
+## Start EPT from source
 
 From the repository root:
 
