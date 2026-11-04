@@ -31,6 +31,7 @@ def test_v1_returns_service_index():
         "service": "EDITO Publishing Toolkit API",
         "docs": "/docs",
         "openapi": "/openapi.json",
+        "handbook": None,
     }
 
 

@@ -2,7 +2,7 @@
 key = "catalogs.mine.get"
 release = "1.0.0"
 title = "Get my catalogs"
-description = "Return the catalog IDs under projects/ from the EDITO STAC API available to the authenticated user."
+description = "Return the IDs of the EDITO STAC project catalogs owned by the authenticated user."
 depends_on = []
 
 [package]
@@ -21,5 +21,5 @@ summary = "Get my catalogs"
 response_model = "ept.features.get_my_catalogs.models:GetMyCatalogsResponse"
 
 [tests]
-unit = "tests/features/get_my_catalogs/test_get_my_catalogs.py"
+unit = "tests/features/get_my_catalogs/test_edito_stac_api.py"
 integration = "tests/features/get_my_catalogs/test_get_my_catalogs.py"

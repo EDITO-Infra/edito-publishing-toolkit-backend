@@ -1,0 +1,26 @@
+[feature]
+key = "stac.build_catalog"
+release = "1.1.0"
+title = "STAC Catalog Builder"
+description = "Build a STAC Catalog from individual fields, a complete JSON object, or an existing object fetched by URL (provided fields override the base). Preview the JSON or export it to a local folder or S3; links are the standard STAC links array with plain hrefs so assemble-stac can stitch trees later."
+depends_on = []
+
+[package]
+requires = ["fastapi", "httpx", "pystac", "pydantic-settings", "fsspec", "s3fs"]
+
+[entrypoints]
+python = ["ept.features.stac_build_catalog.service:build_catalog"]
+
+[api]
+router = "ept.features.stac_build_catalog.routes:router"
+
+[[api.routes]]
+method = "POST"
+path = "/v1/stac/build/catalog"
+summary = "Build a STAC Catalog"
+request_model = "ept.features.stac_build_catalog.models:BuildCatalogRequest"
+response_model = "ept.features.stac_build_catalog.models:BuildCatalogResponse"
+
+[tests]
+unit = "tests/features/stac_build_catalog/test_build_catalog.py"
+integration = "tests/features/stac_build_catalog/test_build_catalog_api.py"

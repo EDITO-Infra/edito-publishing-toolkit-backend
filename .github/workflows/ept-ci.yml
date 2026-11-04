@@ -1,0 +1,204 @@
+name: EPT CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - "release/**"
+      - "hotfix/**"
+
+  push:
+    branches:
+      - main
+      - "release/**"
+      - "hotfix/**"
+
+  workflow_dispatch:
+    inputs:
+      run_contract_and_unit:
+        description: "Run contract and unit tests"
+        required: true
+        default: true
+        type: boolean
+      run_docker_build:
+        description: "Run Docker Compose build check"
+        required: true
+        default: true
+        type: boolean
+      run_integration:
+        description: "Run integration tests against staging"
+        required: true
+        default: false
+        type: boolean
+      deploy_docs:
+        description: "Build and deploy documentation to GitHub Pages"
+        required: true
+        default: true
+        type: boolean
+      runner:
+        description: "Runner for contract/unit and Docker build jobs"
+        required: true
+        default: github-hosted
+        type: choice
+        options:
+          - github-hosted
+          - self-hosted
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ept-ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  contract-and-unit:
+    name: Contract and unit tests
+
+    if: github.event_name != 'workflow_dispatch' || inputs.run_contract_and_unit
+
+    runs-on: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.runner == 'self-hosted' && '["self-hosted","linux","x64"]' || '["ubuntu-latest"]') }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run contract tests
+        run: uv run pytest tests -m contract -ra --tb=short
+
+      - name: Run unit tests
+        run: uv run pytest tests -m unit -ra --tb=short
+
+  docker-build:
+    name: Docker build
+
+    if: github.event_name != 'workflow_dispatch' || inputs.run_docker_build
+
+    runs-on: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.runner == 'self-hosted' && '["self-hosted","linux","x64"]' || '["ubuntu-latest"]') }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Build Docker Compose service
+        run: docker compose -f deploy/docker/docker-compose.yml build
+
+  docs-build:
+    name: Documentation build
+
+    if: github.event_name != 'workflow_dispatch' || inputs.deploy_docs
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install documentation dependencies
+        run: uv sync --frozen
+
+      - name: Build documentation
+        run: uv run --frozen mkdocs build --strict
+
+      - name: Configure GitHub Pages
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.deploy_docs)
+        uses: actions/configure-pages@v6
+
+      - name: Upload GitHub Pages artifact
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.deploy_docs)
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  docs-deploy:
+    name: Deploy documentation
+
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.deploy_docs)
+    needs:
+      - docs-build
+    runs-on: ubuntu-latest
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
+
+  integration:
+    name: Integration tests
+
+    if: github.event_name == 'workflow_dispatch' && inputs.run_integration
+
+    runs-on: [self-hosted, linux, x64]
+    environment: demo_staging
+
+    # Environment variables used in live integration tests, EDITO credentials are required for all feature integration tests
+    env:
+      EDITO_USERNAME: ${{ secrets.EDITO_USERNAME }}
+      EDITO_PASSWORD: ${{ secrets.EDITO_PASSWORD }}
+      EDITO_STAC_API: ${{ secrets.EDITO_STAC_API }}
+      EDITO_AUTH_URL: ${{ secrets.EDITO_AUTH_URL }}
+      PUBLISHING_API_URL: ${{ secrets.PUBLISHING_API_URL }}
+      PUBLISH_PROJECT_ID: ${{ secrets.PUBLISH_PROJECT_ID }}
+      PUBLISH_REMOTE_STAC_URL: ${{ secrets.PUBLISH_REMOTE_STAC_URL }}
+      REMOVE_PROJECT_CATALOG_ID: ${{ secrets.REMOVE_PROJECT_CATALOG_ID }}
+      EDITO_DEMO_JOB_ID: ${{ secrets.EDITO_DEMO_JOB_ID }}
+
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run integration tests
+        run: uv run pytest tests -m integration -ra --tb=short

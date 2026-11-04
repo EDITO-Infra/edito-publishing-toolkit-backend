@@ -1,0 +1,26 @@
+[feature]
+key = "transform.gdb_to_parquet"
+release = "1.1.0"
+title = "Convert ESRI File Geodatabase to GeoParquet"
+description = "Convert an ESRI file geodatabase (.gdb directory, .zip archive, or remote HTTP(S) URL of a .zip) into GeoParquet — one file per layer, each with its own schema, CRS (as PROJJSON) and geometry types (GeoParquet 1.1.0, WKB encoding, ZSTD). Layers are streamed in chunks, so memory stays flat. Written to a local directory or an s3:// target (request-scoped S3 connection parameters). No reprojection."
+depends_on = []
+
+[package]
+requires = ["pyogrio", "pyarrow", "s3fs"]
+
+[entrypoints]
+python = ["ept.features.gdb_to_parquet.service:gdb_to_parquet"]
+
+[api]
+router = "ept.features.gdb_to_parquet.routes:router"
+
+[[api.routes]]
+method = "POST"
+path = "/v1/transform/gdb-to-parquet"
+summary = "Convert GDB to GeoParquet"
+request_model = "ept.features.gdb_to_parquet.models:GdbToParquetRequest"
+response_model = "ept.features.gdb_to_parquet.models:GdbToParquetResponse"
+
+[tests]
+unit = "tests/features/gdb_to_parquet/test_gdb_to_parquet.py"
+integration = "tests/features/gdb_to_parquet/test_gdb_to_parquet.py"

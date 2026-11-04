@@ -4,7 +4,6 @@ services:
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile
-      network: host
     ports:
         - "8000:8000"
     environment:
@@ -13,9 +12,19 @@ services:
       API_LOG: ${API_LOG:-/tmp/ept/logs/api.log}
       PUBLISHING_API_URL: ${PUBLISHING_API_URL:-https://edito-publisher.vliz.be/}
       EDITO_STAC_API_URL: ${EDITO_STAC_API_URL:-https://api.dive.edito.eu/data}
-      EDITO_AUTH_URL: ${EDITO_AUTH_URL:-https://auth.dive.edito.eu/auth/realms/datalab/protocol/openid-connect/token}
-    user: "${EPT_API_UID:-1000}:${EPT_API_GID:-1000}"
+      EDITO_AUTH_ISSUER_URL: ${EDITO_AUTH_ISSUER_URL:-https://auth.dive.edito.eu/auth/realms/datalab}
+      EDITO_S3_ENDPOINT_URL: ${EDITO_S3_ENDPOINT_URL:-https://minio.dive.edito.eu}
+      EDITO_AUTH_CLIENT_ID: ${EDITO_AUTH_CLIENT_ID:-edito}
+    # Rootless Docker maps container root to the host user (files written to
+    # the bind mount end up owned by the host user). On a root-rooted Docker
+    # daemon set EPT_API_UID/EPT_API_GID to the desired host uid/gid instead.
+    user: "${EPT_API_UID:-0}:${EPT_API_GID:-0}"
     working_dir: /app
+    volumes:
+      # Writable space for local_output exports: relative local targets (e.g.
+      # "./workspace/catalog-1") resolve against /app, landing here.
+      - ./workspace:/app/workspace
+      - ./data:/app/data
     command: uvicorn ept.api.main:app --host 0.0.0.0 --port 8000
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/healthz"]

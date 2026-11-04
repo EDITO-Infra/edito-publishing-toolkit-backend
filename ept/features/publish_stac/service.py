@@ -2,32 +2,30 @@
 
 from __future__ import annotations
 
-import logging
+import httpx
 
-from ept.infrastructure.services.publishing import PublishingServiceClient, PublishingServiceJobAuth
+from ept.features.publish_stac.client import publish_stac_job
+from ept.features.publish_stac.dependencies import PublishingJobAuth
 
-from .adapters import from_publishing_service_queued_response, to_publishing_service_publish_request
 from .models import PublishStacRequest, PublishStacResponse
-
-logger = logging.getLogger(__name__)
 
 
 async def publish_stac(
     request: PublishStacRequest,
     *,
-    publishing_auth: PublishingServiceJobAuth,
-    publishing_client: PublishingServiceClient,
+    publishing_auth: PublishingJobAuth,
+    http_client: httpx.AsyncClient,
 ) -> PublishStacResponse:
-    """Adapt an EPT request, submit it upstream, and adapt the queued response."""
-    logger.info(
-        "Starting publish_stac remote_stac_url=%s catalog_id=%s",
-        request.remote_stac_url,
-        request.catalog_id,
+    """Build the upstream payload, queue the job, and map the acknowledgement."""
+    job = await publish_stac_job(
+        http_client,
+        {
+            # HttpUrl is a Url object; the upstream contract is a plain string.
+            "remote_stac_url": str(request.remote_stac_url),
+            "parent_path": f"/catalogs/{request.catalog_id}",
+            "dry_run": False,
+        },
+        access_token=publishing_auth.access_token,
+        refresh_token=publishing_auth.refresh_token,
     )
-    upstream_response = await publishing_client.publish_stac_job(
-        to_publishing_service_publish_request(request),
-        auth=publishing_auth,
-    )
-    response = from_publishing_service_queued_response(upstream_response)
-    logger.info("Completed publish_stac job_id=%s status=%s", response.job_id, response.status)
-    return response
+    return PublishStacResponse(job_id=job.job_id, status=job.status)

@@ -1,0 +1,36 @@
+# Operations executable by the EPT job runner (POST /v1/runs).
+#
+# Each table declares a feature service; the runner executes it generically —
+# features never import the runner, and the runner imports features only via
+# these import strings (same mechanism as registry entrypoints).
+#
+# Service convention (checked eagerly at startup):
+#     async def service(request: <request_model instance>,
+#                       *, access_token: str | None = None) -> BaseModel | dict
+#
+# The runner validates the submit payload against ``request_model`` and calls
+# the service with the submitting caller's EDITO access token. Token-
+# attachment policy belongs inside the service so sync and background calls
+# behave identically. Services create their own HTTP clients — the submit
+# request's per-request client is closed by then. A ``BaseModel`` return is
+# dumped with ``model_dump(mode="json")``; a dict is passed through.
+#
+# ``endpoint`` is the OpenAPI route (METHOD /path) accepting the same payload
+# synchronously — the single source of truth for "this endpoint can also run
+# in the runner".
+#
+# These are EPT-local feature runs, unrelated to publish/remove jobs, which
+# are queued on the external EDITO publishing service and polled via
+# /v1/edito/publish/jobs/{job_id}.
+
+[operations.stac_validate]
+key = "stac.validate"
+endpoint = "POST /v1/stac/validate"
+service = "ept.features.validate_stac.service:validate_stac"
+request_model = "ept.features.validate_stac.models:ValidateStacRequest"
+
+[operations.arco_stac_item]
+key = "arco.stac-item"
+endpoint = "POST /v1/arco/stac-item"
+service = "ept.features.arco_stac_item.service:arco_stac_item"
+request_model = "ept.features.arco_stac_item.models:ArcoStacItemRequest"

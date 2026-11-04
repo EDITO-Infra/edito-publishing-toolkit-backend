@@ -5,11 +5,13 @@ from __future__ import annotations
 import logging
 from urllib.parse import quote, urlencode
 
-from ept.infrastructure.services.publishing import (
-    PublishingServiceClient,
+import httpx
+
+from ept.features.get_publish_job.transport import (
     PublishingServiceJobDetailResponse,
     PublishingServiceJobRawResponse,
     PublishingServiceJobSummary,
+    get_job,
     parse_publishing_next_cursor,
 )
 
@@ -25,7 +27,7 @@ async def get_publish_job(
     limit: int,
     cursor: int | None,
     access_token: str,
-    publishing_client: PublishingServiceClient,
+    http_client: httpx.AsyncClient,
 ) -> GetPublishJobResponse:
     """Return a job summary or one cursor-paginated log page."""
     logger.info(
@@ -37,7 +39,7 @@ async def get_publish_job(
     )
 
     if view == "summary":
-        upstream = await publishing_client.get_job(job_id, access_token=access_token, view=view)
+        upstream = await get_job(http_client, job_id, access_token=access_token, view=view)
         if not isinstance(upstream, PublishingServiceJobSummary):
             raise RuntimeError("Publishing gateway returned an unexpected summary type.")
         response = GetPublishJobResponse.model_validate(
@@ -46,7 +48,8 @@ async def get_publish_job(
         logger.info("Completed get_publish_job job_id=%s view=summary", job_id)
         return response
 
-    upstream = await publishing_client.get_job(
+    upstream = await get_job(
+        http_client,
         job_id,
         access_token=access_token,
         view=view,

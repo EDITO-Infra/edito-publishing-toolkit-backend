@@ -1,0 +1,25 @@
+[feature]
+key = "stac.get"
+release = "1.1.0"
+title = "STAC Fetch"
+description = "Fetch a single STAC object (Item, Collection, or Catalog) by URL and return it as JSON with its detected type. Companion to the STAC builder: load an existing object into the build form for editing. The bearer token is attached only when the URL targets the EDITO STAC API."
+depends_on = []
+
+[package]
+requires = ["fastapi", "httpx", "pydantic-settings"]
+
+[entrypoints]
+python = ["ept.features.stac_get.service:fetch_stac_object"]
+
+[api]
+router = "ept.features.stac_get.routes:router"
+
+[[api.routes]]
+method = "GET"
+path = "/v1/stac/get"
+summary = "Fetch one STAC object by URL"
+response_model = "ept.features.stac_get.models:GetStacResponse"
+
+[tests]
+unit = "tests/features/stac_get/test_stac_get_unit.py"
+integration = "tests/features/stac_get/test_stac_get.py"

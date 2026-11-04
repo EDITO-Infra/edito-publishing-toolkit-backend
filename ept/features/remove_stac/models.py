@@ -14,7 +14,7 @@ class RemoveStacRequest(BaseModel):
         pattern=r"^projects/[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)*$",
         description=(
             "catalog ID to be removed starting with `projects/`. "
-            "To see your available catalogs, see feature `GET /v1/edito/stac/mycatalogs`. "
+            "GET /v1/edito/stac/mycatalogs lists the project catalogs you own. "
         ),
         examples=[
             "projects/project-id/catalog-1",

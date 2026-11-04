@@ -1,0 +1,27 @@
+[feature]
+key = "transform.nc_to_zarr"
+release = "1.1.0"
+title = "Transform NetCDF to Zarr"
+description = "Convert a local, S3, or OpenDAP NetCDF source into a Zarr store in your S3 storage (default bucket oidc-<username>) or on the EPT filesystem (local_output override)."
+depends_on = []
+
+[package]
+extra = "arco"
+requires = ["xarray", "zarr", "fsspec", "s3fs", "netcdf4", "h5netcdf"]
+
+[entrypoints]
+python = ["ept.features.nc_to_zarr.service:nc_to_zarr"]
+
+[api]
+router = "ept.features.nc_to_zarr.routes:router"
+
+[[api.routes]]
+method = "POST"
+path = "/v1/transform/nc-to-zarr"
+summary = "Transform NetCDF to Zarr"
+request_model = "ept.features.nc_to_zarr.models:NetcdfToZarrRequest"
+response_model = "ept.features.nc_to_zarr.models:NetcdfToZarrResponse"
+
+[tests]
+unit = "tests/features/nc_to_zarr/test_nc_to_zarr.py"
+integration = "tests/features/nc_to_zarr/test_nc_to_zarr.py"

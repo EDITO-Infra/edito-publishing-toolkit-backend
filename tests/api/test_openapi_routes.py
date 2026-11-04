@@ -60,32 +60,26 @@ def test_openapi_uses_professional_v1_conventions() -> None:
     assert paths["/v1"]["get"]["operationId"] == "getApiIndexV1"
     auth_operation = paths["/v1/auth"]["post"]
     assert auth_operation["operationId"] == "createEditoTokensV1"
-    auth_json = auth_operation["requestBody"]["content"]["application/json"]
-    assert auth_json["example"] == {
-        "grant_type": "password",
+    assert set(auth_operation["requestBody"]["content"]) == {
+        "application/x-www-form-urlencoded"
+    }
+    auth_form = auth_operation["requestBody"]["content"]["application/x-www-form-urlencoded"]
+    assert auth_form["example"] == {
         "username": "YOUR_EDITO_USERNAME",
         "password": "YOUR_EDITO_PASSWORD",
     }
-    assert auth_json["schema"]["oneOf"] == [
-        {"$ref": "#/components/schemas/EditoPasswordTokenRequest"},
-        {"$ref": "#/components/schemas/EditoRefreshTokenRequest"},
+    assert auth_form["schema"]["oneOf"] == [
+        {"$ref": "#/components/schemas/EditoPasswordAuthForm"},
+        {"$ref": "#/components/schemas/EditoRefreshAuthForm"},
     ]
-    assert auth_json["schema"]["discriminator"] == {
-        "propertyName": "grant_type",
-        "mapping": {
-            "password": "#/components/schemas/EditoPasswordTokenRequest",
-            "refresh_token": "#/components/schemas/EditoRefreshTokenRequest",
-        },
-    }
-    assert schema["components"]["schemas"]["EditoPasswordTokenRequest"]["required"] == [
-        "grant_type",
-        "username",
-        "password",
-    ]
-    assert schema["components"]["schemas"]["EditoRefreshTokenRequest"]["required"] == [
-        "grant_type",
-        "refresh_token",
-    ]
+    password_form = schema["components"]["schemas"]["EditoPasswordAuthForm"]
+    assert password_form["required"] == ["username", "password"]
+    assert set(password_form["properties"]) == {"username", "password"}
+    assert password_form["properties"]["password"]["minLength"] == 1
+    refresh_form = schema["components"]["schemas"]["EditoRefreshAuthForm"]
+    assert refresh_form["required"] == ["refresh_token"]
+    assert set(refresh_form["properties"]) == {"refresh_token"}
+    assert refresh_form["properties"]["refresh_token"]["minLength"] == 1
     assert paths["/v1/protected"]["post"]["operationId"] == "exerciseProtectedApiBehaviorV1"
 
 

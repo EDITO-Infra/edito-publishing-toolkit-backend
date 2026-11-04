@@ -1,0 +1,26 @@
+[feature]
+key = "metadata.iso-to-stac-item"
+release = "1.1.0"
+title = "ISO19139 to STAC Item"
+description = "Converts an ISO19139 metadata record (local path, HTTP(S) URL, or S3 URI) into a STAC Item and writes the Item JSON to the caller's S3 storage, or to a local directory via local_output."
+depends_on = []
+
+[package]
+requires = ["pydantic", "httpx", "pyyaml", "s3fs"]
+
+[entrypoints]
+python = ["ept.features.iso_to_stac_item.service:iso_to_stac_item"]
+
+[api]
+router = "ept.features.iso_to_stac_item.routes:router"
+
+[[api.routes]]
+method = "POST"
+path = "/v1/metadata/iso-to-stac-item"
+summary = "Convert an ISO19139 record into a STAC Item"
+request_model = "ept.features.iso_to_stac_item.models:IsoToStacItemRequest"
+response_model = "ept.features.iso_to_stac_item.models:IsoToStacItemResponse"
+
+[tests]
+unit = "tests/features/iso_to_stac_item/test_iso_to_stac_item.py"
+integration = "tests/features/iso_to_stac_item/test_iso_to_stac_item_api.py"

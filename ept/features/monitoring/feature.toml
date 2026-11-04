@@ -1,0 +1,34 @@
+[feature]
+key = "monitoring.query"
+release = "1.0.0"
+title = "Monitoring"
+description = "Return structured API log events from the in-process buffer and live process status for frontend dashboards."
+depends_on = []
+
+[package]
+requires = ["fastapi"]
+
+[entrypoints]
+python = [
+    "ept.features.monitoring.service:get_monitoring_logs",
+    "ept.features.monitoring.service:get_monitoring_status",
+]
+
+[api]
+router = "ept.features.monitoring.routes:router"
+
+[[api.routes]]
+method = "GET"
+path = "/v1/monitoring/logs"
+summary = "Query buffered API logs"
+response_model = "ept.features.monitoring.models:MonitoringLogsResponse"
+
+[[api.routes]]
+method = "GET"
+path = "/v1/monitoring/status"
+summary = "Get process monitoring status"
+response_model = "ept.features.monitoring.models:MonitoringStatusResponse"
+
+[tests]
+unit = "tests/features/monitoring/test_monitoring.py"
+integration = "tests/features/monitoring/test_monitoring.py"

@@ -1,0 +1,26 @@
+[feature]
+key = "assemble.stac"
+release = "1.1.0"
+title = "STAC Assemble"
+description = "Assemble loose STAC JSON files (catalogs, collections, items) from a local folder, zip archive, or s3:// source into one valid, linked STAC tree. Structure is resolved from the files' own links (parent/child/item/collection), an item's 'collection' property, or the folder layout as fallback; derivable fields (ids, stac_version, bboxes, extents) are filled in from the items. Exports to a workspace directory or S3 (s3://bucket/prefix via the request's S3 credentials) and schema-validates every exported object."
+depends_on = []
+
+[package]
+requires = ["fastapi", "httpx", "pystac", "pydantic-settings", "fsspec", "s3fs", "stac-valid"]
+
+[entrypoints]
+python = ["ept.features.assemble_stac.service:assemble_stac"]
+
+[api]
+router = "ept.features.assemble_stac.routes:router"
+
+[[api.routes]]
+method = "POST"
+path = "/v1/stac/assemble"
+summary = "Assemble a valid STAC from loose JSON files"
+request_model = "ept.features.assemble_stac.models:AssembleStacRequest"
+response_model = "ept.features.assemble_stac.models:AssembleStacResponse"
+
+[tests]
+unit = "tests/features/assemble_stac/test_assemble_stac.py"
+integration = "tests/features/assemble_stac/test_assemble_stac_api.py"

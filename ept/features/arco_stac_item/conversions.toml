@@ -1,0 +1,108 @@
+# Conversions executable by the ARCO STAC Item feature (POST /v1/arco/stac-item).
+#
+# Same mechanism as the job runner's operations.toml: features are declared
+# here by import string — the feature code never imports a conversion
+# service directly, and each declaration is imported eagerly so a broken
+# entry fails at startup.
+#
+# Each table:
+#   service        feature service: callable(request) -> response (BaseModel);
+#                  the response must expose `target_uri` (the s3:// URI of the
+#                  converted output)
+#   request_model  pydantic model the payload is validated against
+#   asset_key      Item asset key for the converted output; the {source}
+#                  placeholder uses the source asset key. Canonical keys
+#                  ("zarr", "parquet") get a numeric suffix on collision.
+#   media_type     media type set on the added asset
+#   result_field   optional response attribute copied into the conversion
+#                  result (e.g. "layers" for gdb-to-parquet)
+#
+# [conversions.<key>.detect]   optional auto-detection; never applied to an
+#   asset named by the request's explicit `conversions` mapping:
+#     media_type    substrings matched against the asset's type
+#     suffixes      href suffixes (matched on the path component)
+#     href_markers  substrings matched against the lowercased href
+#
+# [conversions.<key>.fields]   asset values copied into the request payload:
+#     href         the asset href
+#     bucket       the assets output bucket
+#     target       the assets output prefix
+#
+# [conversions.<key>.values]   request fields set from format templates;
+#     placeholders: {source} (safe source asset key), {suffix} (href file
+#     suffix, ".zip" fallback), {s3_prefix} (s3://<bucket>/<assets_target>),
+#     {target} (the assets_target prefix).
+#
+# Request-scoped S3 credentials (endpoint_url, access_key_id,
+# secret_access_key, session_token) are injected automatically into any
+# request model that declares those fields, as is the ARCO request's
+# `overwrite` flag into any model that declares `overwrite`.
+
+[conversions.nc-to-zarr]
+service = "ept.features.nc_to_zarr.service:nc_to_zarr"
+request_model = "ept.features.nc_to_zarr.models:NetcdfToZarrRequest"
+asset_key = "zarr"
+media_type = "application/vnd+zarr"
+
+[conversions.nc-to-zarr.detect]
+media_type = ["netcdf"]
+suffixes = [".nc", ".nc4", ".cdf"]
+href_markers = ["dods", "griddap", "opendap", "thredds"]
+
+[conversions.nc-to-zarr.fields]
+href = "source_uri"
+bucket = "bucket"
+target = "target"
+
+[conversions.nc-to-zarr.values]
+output_name = "{source}.zarr"
+
+[conversions.gdb-to-parquet]
+service = "ept.features.gdb_to_parquet.service:gdb_to_parquet"
+request_model = "ept.features.gdb_to_parquet.models:GdbToParquetRequest"
+asset_key = "parquet"
+media_type = "application/vnd.apache.parquet"
+result_field = "layers"
+
+[conversions.gdb-to-parquet.detect]
+suffixes = [".gdb", ".gdb.zip"]
+
+[conversions.gdb-to-parquet.fields]
+href = "source_uri"
+bucket = "bucket"
+target = "target"
+
+[conversions.gdb-to-parquet.values]
+target = "{target}/{source}"
+
+[conversions.shp-to-parquet]
+service = "ept.features.shp_to_parquet.service:shp_to_parquet"
+request_model = "ept.features.shp_to_parquet.models:ShpToParquetRequest"
+asset_key = "parquet"
+media_type = "application/vnd.apache.parquet"
+result_field = "layers"
+
+[conversions.shp-to-parquet.detect]
+suffixes = [".shp"]
+
+[conversions.shp-to-parquet.fields]
+href = "source_uri"
+bucket = "bucket"
+target = "target"
+
+[conversions.shp-to-parquet.values]
+target = "{target}/{source}"
+
+[conversions.upload]
+service = "ept.features.upload_s3.service:upload_s3"
+request_model = "ept.features.upload_s3.models:UploadS3Request"
+asset_key = "{source}"
+media_type = "application/zip"
+
+[conversions.upload.fields]
+href = "source"
+bucket = "bucket"
+target = "target"
+
+[conversions.upload.values]
+output_name = "{source}{suffix}"

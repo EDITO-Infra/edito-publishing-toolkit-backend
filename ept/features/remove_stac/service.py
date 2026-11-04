@@ -2,28 +2,28 @@
 
 from __future__ import annotations
 
-import logging
+import httpx
 
-from ept.infrastructure.services.publishing import PublishingServiceClient, PublishingServiceJobAuth
+from ept.features.remove_stac.client import remove_stac_job
+from ept.features.remove_stac.dependencies import PublishingJobAuth
 
-from .adapters import from_publishing_service_queued_response, to_publishing_service_remove_request
 from .models import RemoveStacRequest, RemoveStacResponse
-
-logger = logging.getLogger(__name__)
 
 
 async def remove_stac(
     request: RemoveStacRequest,
     *,
-    publishing_auth: PublishingServiceJobAuth,
-    publishing_client: PublishingServiceClient,
+    publishing_auth: PublishingJobAuth,
+    http_client: httpx.AsyncClient,
 ) -> RemoveStacResponse:
-    """Adapt an EPT request, submit it upstream, and adapt the queued response."""
-    logger.info("Starting remove_stac catalog_id=%s", request.catalog_id)
-    upstream_response = await publishing_client.remove_stac_job(
-        to_publishing_service_remove_request(request),
-        auth=publishing_auth,
+    """Build the upstream payload, queue the job, and map the acknowledgement."""
+    job = await remove_stac_job(
+        http_client,
+        {
+            "path": f"/catalogs/{request.catalog_id}",
+            "dry_run": False,
+        },
+        access_token=publishing_auth.access_token,
+        refresh_token=publishing_auth.refresh_token,
     )
-    response = from_publishing_service_queued_response(upstream_response)
-    logger.info("Completed remove_stac job_id=%s status=%s", response.job_id, response.status)
-    return response
+    return RemoveStacResponse(job_id=job.job_id, status=job.status)

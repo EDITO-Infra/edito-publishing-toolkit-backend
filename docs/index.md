@@ -36,8 +36,17 @@ The EDITO Publishing Toolkit (EPT) helps data providers publish metadata and dat
 
     [Browse features](features/index.md)
 
+-   **Hands-on tutorial**
+
+    ---
+
+    Step-by-step walkthroughs of the full workflow — vectors, NetCDF → Zarr,
+    catalog & publish — from files to a validated STAC catalog.
+
+    [Open the hands-on tutorial](tutorials/ept-handson-tutorial/index.md)
+
 </div>
 
 ## Versioning
 
-v1.0.0
+v1.1.0-beta

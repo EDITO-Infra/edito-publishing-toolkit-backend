@@ -49,6 +49,21 @@ def test_successful_healthz_request_is_not_logged(caplog):
 
 
 @unit
+def test_successful_monitoring_request_is_not_logged(caplog):
+    """Monitoring UI polls stay out of the log buffer they read from."""
+    caplog.set_level(logging.INFO, logger="ept.api.app")
+    app = create_api_shell_test_app()
+
+    @app.get("/v1/monitoring/status")
+    async def monitoring_status() -> dict[str, str]:
+        return {"status": "ok"}
+
+    asyncio.run(get_many("/v1/monitoring/status?level=INFO", app=app))
+
+    assert "API request completed method=GET path=/v1/monitoring" not in caplog.text
+
+
+@unit
 def test_token_diagnostic_redacts_by_default(monkeypatch):
     """Token diagnostics expose presence and length without token values by default."""
     monkeypatch.delenv("EPT_LOG_TOKEN_VALUES", raising=False)

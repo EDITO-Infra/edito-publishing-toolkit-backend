@@ -1,0 +1,27 @@
+[feature]
+key = "storage.s3_upload"
+release = "1.0.0"
+title = "Upload data to S3"
+description = "Upload a remote HTTP(S) resource or a local file or directory to S3-compatible object storage. Bucket defaults to the caller's personal oidc-<username> bucket; other accessible buckets are accepted."
+depends_on = []
+
+[package]
+extra = "storage"
+requires = ["fsspec", "s3fs"]
+
+[entrypoints]
+python = ["ept.features.upload_s3.service:upload_s3"]
+
+[api]
+router = "ept.features.upload_s3.routes:router"
+
+[[api.routes]]
+method = "POST"
+path = "/v1/storage/s3/upload"
+summary = "Upload to S3"
+request_model = "ept.features.upload_s3.models:UploadS3Request"
+response_model = "ept.features.upload_s3.models:UploadS3Response"
+
+[tests]
+unit = "tests/features/upload_s3/test_s3_transfer.py"
+integration = "tests/features/upload_s3/test_upload_s3.py"

@@ -1,0 +1,58 @@
+# ISO19139 online-resource → STAC asset translation table.
+#
+# Loaded by the feature adapter (ept.features.iso_to_stac_item.adapter) to
+# translate gmd:CI_OnlineResource linkages into typed STAC assets.
+# Override per request with `options.assets_config_path` (same structure).
+#
+# file_extensions: keyed by the asset href's file extension.
+# url_patterns:    keyed by a regex matched against the full href; first
+#                  match wins, file extensions are checked first.
+
+file_extensions:
+  .nc:
+    asset_type: netcdf
+    title: NetCDF data
+    mediatype: application/x-netcdf
+    roles: [data]
+  .zarr:
+    asset_type: zarr
+    title: Zarr data
+    mediatype: application/vnd+zarr
+    roles: [data]
+  .tif:
+    asset_type: geotiff
+    title: GeoTIFF data
+    mediatype: image/tiff; application=geotiff
+    roles: [data]
+  .tiff:
+    asset_type: geotiff
+    title: GeoTIFF data
+    mediatype: image/tiff; application=geotiff
+    roles: [data]
+  .shp:
+    asset_type: shapefile
+    title: Shapefile data
+    mediatype: application/x-shapefile
+    roles: [data]
+  .zip:
+    asset_type: zip
+    title: ZIP archive
+    mediatype: application/zip
+    roles: [data]
+
+url_patterns:
+  service=wms:
+    asset_type: wms
+    title: WMS service
+    mediatype: application/xml
+    roles: [data, visual]
+  service=wfs:
+    asset_type: wfs
+    title: WFS service
+    mediatype: application/xml
+    roles: [data]
+  service=wmts:
+    asset_type: wmts
+    title: WMTS service
+    mediatype: application/xml
+    roles: [data, visual]

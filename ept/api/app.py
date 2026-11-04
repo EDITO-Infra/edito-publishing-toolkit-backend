@@ -13,9 +13,15 @@ from typing import Any, AsyncIterator
 
 from fastapi import FastAPI, Request
 from fastapi.openapi.utils import get_openapi
+from fastapi.staticfiles import StaticFiles
 
 from ept import __version__
 from ept.infrastructure.utils.logging import sanitize_query_string
+from ept.infrastructure.utils.monitoring import (
+    get_log_buffer,
+    record_request_end,
+    record_request_start,
+)
 
 from .auth import router as auth_router
 from .errors import PROBLEM_JSON, register_exception_handlers
@@ -27,6 +33,29 @@ logger = logging.getLogger(__name__)
 _log_listener: QueueListener | None = None
 
 
+class ExtrasFormatter(logging.Formatter):
+    """Formatter that appends ``extra={...}`` fields to the rendered message.
+
+    stdlib's Formatter only renders ``%(message)s`` — structured fields passed
+    via ``extra=`` were silently dropped from both console and file output.
+    This appends them as ``key=value`` pairs so call sites don't have to
+    duplicate detail into the message string.
+    """
+
+    _STD_ATTRS = frozenset(vars(logging.LogRecord("", 0, "", 0, "", (), None)))
+
+    def format(self, record: logging.LogRecord) -> str:
+        rendered = super().format(record)
+        extras = {
+            k: v
+            for k, v in record.__dict__.items()
+            if k not in self._STD_ATTRS and k != "message" and k != "asctime"
+        }
+        if extras:
+            rendered += " " + " ".join(f"{k}={v!r}" for k, v in sorted(extras.items()))
+        return rendered
+
+
 def configure_logging() -> QueueListener:
     """Start non-blocking console and rotating file logging for the API process."""
     log_level = getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO)
@@ -35,7 +64,10 @@ def configure_logging() -> QueueListener:
 
     log_queue: Queue = Queue(-1)
     queue_handler = QueueHandler(log_queue)
-    queue_handler.setLevel(log_level)
+    # Pass DEBUG records into the queue so the in-memory monitoring buffer can
+    # retain them (visible via the logs endpoint with level=DEBUG); the
+    # console/file handlers below still gate their own streams at LOG_LEVEL.
+    queue_handler.setLevel(logging.DEBUG)
 
     file_handler = RotatingFileHandler(
         log_path,
@@ -44,25 +76,32 @@ def configure_logging() -> QueueListener:
         encoding="utf-8",
     )
     file_handler.setLevel(log_level)
-    file_handler.setFormatter(
-        logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
-    )
+    file_handler.setFormatter(ExtrasFormatter("%(asctime)s %(levelname)s [%(name)s] %(message)s"))
 
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
     root_logger.handlers.clear()
     root_logger.addHandler(queue_handler)
+    # Only ept.* loggers may emit DEBUG (auth/poll traces for the monitoring
+    # buffer); third-party libraries stay at LOG_LEVEL to avoid buffer noise.
+    logging.getLogger("ept").setLevel(logging.DEBUG)
+
+    # httpx logs one INFO line per HTTP response — a full STAC traversal would
+    # flood console, file, and monitoring store. Response errors still reach
+    # the log via EPT's own fetch-error handling; only real httpx warnings
+    # (misconfiguration, deprecations) pass this gate.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
 
     console_handler = logging.StreamHandler()
     console_handler.setLevel(log_level)
-    console_handler.setFormatter(
-        logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
-    )
+    console_handler.setFormatter(ExtrasFormatter("%(asctime)s %(levelname)s [%(name)s] %(message)s"))
 
     listener = QueueListener(
         log_queue,
         console_handler,
         file_handler,
+        get_log_buffer(),
         respect_handler_level=True,
     )
     listener.start()
@@ -74,6 +113,10 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Start and stop process-level resources."""
     global _log_listener
 
+    root_logger = logging.getLogger()
+    previous_level = root_logger.level
+    previous_handlers = root_logger.handlers[:]
+
     _log_listener = configure_logging()
     logger.info("EPT API logging started.")
 
@@ -84,6 +127,11 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         if _log_listener is not None:
             _log_listener.stop()
             _log_listener = None
+        # configure_logging replaces root handlers/level wholesale; restore them
+        # so embedded lifecycles (TestClient in test suites) don't leak logging
+        # state into whatever runs after shutdown.
+        root_logger.handlers[:] = previous_handlers
+        root_logger.setLevel(previous_level)
 
 
 def create_app() -> FastAPI:
@@ -95,26 +143,15 @@ def create_app() -> FastAPI:
         docs_url=None,
         lifespan=lifespan,
         openapi_tags=[
-            {
-                "name": "Service",
-                "description": "Application metadata and documentation endpoints.",
-            },
-            {
-                "name": "Authentication",
-                "description": "EDITO authentication and token refresh endpoints.",
-            },
-            {
-                "name": "STAC Publication and Removal",
-                "description": "Queue STAC publication and removal jobs.",
-            },
-            {
-                "name": "Publication Jobs",
-                "description": "Read publication job state and logs.",
-            },
-            {
-                "name": "STAC Catalogs",
-                "description": "Discover EDITO catalogs available to the authenticated user.",
-            },
+            {"name": "Transform Data", "description": "Convert data between formats: NetCDF to Zarr, ESRI GDB to GeoParquet."},
+            {"name": "Metadata Conversion", "description": "Create STAC Items from ISO19139 records, NetCDF or Zarr metadata."},
+            {"name": "Make STAC", "description": "Build, assemble and suggest STAC catalogs, collections and items."},
+            {"name": "STAC Tools", "description": "Validate, find and fetch STAC objects."},
+            {"name": "Storage & Assets", "description": "Upload files and STAC item assets to S3-compatible storage."},
+            {"name": "Publish STAC", "description": "List EDITO project catalogs, publish and remove STAC metadata, track publication jobs."},
+            {"name": "Monitoring", "description": "Buffered API log events and process status."},
+            {"name": "Authentication", "description": "EDITO API tokens and request-scoped S3 credentials."},
+            {"name": "Service", "description": "API index and service links."},
         ],
     )
 
@@ -126,6 +163,13 @@ def create_app() -> FastAPI:
 
     # Feature routers declare their own auth dependencies at the route boundary.
     include_feature_routers(app)
+
+    # Version-matched handbook (mkdocs site baked into the image) served at
+    # /handbook when present; dev checkouts without a built site skip the mount.
+    handbook_dir = Path(os.getenv("EPT_HANDBOOK_DIR", "site"))
+    if handbook_dir.is_dir():
+        app.mount("/handbook", StaticFiles(directory=handbook_dir, html=True), name="handbook")
+        app.state.handbook_url = "/handbook"
 
     register_openapi_schema(app)
 
@@ -167,18 +211,20 @@ def _document_bearer_jwt(schema: dict[str, Any]) -> None:
 
 
 def _document_auth_request_example(schema: dict[str, Any]) -> None:
-    """Provide the default password-grant body shown by API documentation clients."""
-    auth_json = (
+    """Provide the default password-grant form shown by API documentation clients."""
+    auth_form = (
         schema.get("paths", {})
         .get("/v1/auth", {})
         .get("post", {})
         .get("requestBody", {})
         .get("content", {})
-        .get("application/json")
+        .get("application/x-www-form-urlencoded")
     )
-    if isinstance(auth_json, dict):
-        auth_json["example"] = {
-            "grant_type": "password",
+    if isinstance(auth_form, dict):
+        form_schema = auth_form.get("schema")
+        if isinstance(form_schema, dict) and "anyOf" in form_schema:
+            form_schema["oneOf"] = form_schema.pop("anyOf")
+        auth_form["example"] = {
             "username": "YOUR_EDITO_USERNAME",
             "password": "YOUR_EDITO_PASSWORD",
         }
@@ -215,9 +261,11 @@ def register_request_logging(app: FastAPI) -> None:
         client = request.client.host if request.client else "unknown"
 
         try:
+            record_request_start()
             response = await call_next(request)
         except Exception:
             duration_ms = (time.perf_counter() - started_at) * 1000
+            record_request_end(500)
             logger.exception(
                 "API request failed method=%s path=%s query=%s client=%s duration_ms=%.2f",
                 request.method,
@@ -225,16 +273,22 @@ def register_request_logging(app: FastAPI) -> None:
                 query,
                 client,
                 duration_ms,
+                extra={"event": "http_request"},
             )
             raise
 
         duration_ms = (time.perf_counter() - started_at) * 1000
+        record_request_end(response.status_code)
         if (
             request.method == "GET"
             and request.url.path in {"/", "/v1", "/healthz"}
             and not request.url.query
             and response.status_code < 400
         ):
+            return response
+        # The monitoring UI polls these endpoints continuously; logging the polls
+        # would fill the buffer with its own traffic and evict feature logs.
+        if request.url.path.startswith("/v1/monitoring") and response.status_code < 400:
             return response
         logger.log(
             logging.WARNING if response.status_code >= 400 else logging.INFO,
@@ -245,6 +299,7 @@ def register_request_logging(app: FastAPI) -> None:
             client,
             response.status_code,
             duration_ms,
+            extra={"event": "http_request"},
         )
         return response
 

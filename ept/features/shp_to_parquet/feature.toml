@@ -1,0 +1,26 @@
+[feature]
+key = "transform.shp_to_parquet"
+release = "1.0.0"
+title = "Convert Shapefiles to GeoParquet"
+description = "Convert ESRI shapefiles (a .shp file, a .zip archive containing one or more, or a remote HTTP(S) URL of such a .zip) into GeoParquet — one file per shapefile, each with its own schema, CRS (as PROJJSON) and geometry types (GeoParquet 1.1.0, WKB encoding, ZSTD). Files are streamed in chunks, so memory stays flat. Written to a local directory or an s3:// target (request-scoped S3 connection parameters). No reprojection."
+depends_on = []
+
+[package]
+requires = ["pyogrio", "pyarrow", "s3fs"]
+
+[entrypoints]
+python = ["ept.features.shp_to_parquet.service:shp_to_parquet"]
+
+[api]
+router = "ept.features.shp_to_parquet.routes:router"
+
+[[api.routes]]
+method = "POST"
+path = "/v1/transform/shp-to-parquet"
+summary = "Convert Shapefile to GeoParquet"
+request_model = "ept.features.shp_to_parquet.models:ShpToParquetRequest"
+response_model = "ept.features.shp_to_parquet.models:ShpToParquetResponse"
+
+[tests]
+unit = "tests/features/shp_to_parquet/test_shp_to_parquet.py"
+integration = "tests/features/shp_to_parquet/test_shp_to_parquet.py"

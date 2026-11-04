@@ -1,0 +1,50 @@
+[feature]
+key = "jobs.runner"
+release = "1.0.0"
+title = "EPT job runner"
+description = "Run long-running EPT feature operations as background runs: submit (202), poll status and result, cancel in flight. Runs execute in the EPT process with run- identifiers and are unrelated to publish/remove jobs, which run on the external EDITO publishing service."
+depends_on = ["validate.stac"]
+
+[package]
+requires = ["fastapi", "pydantic"]
+
+[entrypoints]
+python = ["ept.features.job_runner.operations:registered_operations"]
+
+[api]
+router = "ept.features.job_runner.routes:router"
+
+[[api.routes]]
+method = "POST"
+path = "/v1/runs"
+summary = "Submit a feature operation as an EPT run"
+request_model = "ept.features.job_runner.models:SubmitRunRequest"
+response_model = "ept.features.job_runner.models:RunSubmittedResponse"
+
+[[api.routes]]
+method = "GET"
+path = "/v1/runs/operations"
+summary = "List registered runner operations"
+response_model = "ept.features.job_runner.models:RunOperationsResponse"
+
+[[api.routes]]
+method = "GET"
+path = "/v1/runs"
+summary = "List caller-owned EPT runs"
+response_model = "ept.features.job_runner.models:RunListResponse"
+
+[[api.routes]]
+method = "GET"
+path = "/v1/runs/{run_id}"
+summary = "Poll an EPT run"
+response_model = "ept.features.job_runner.models:RunStatusResponse"
+
+[[api.routes]]
+method = "DELETE"
+path = "/v1/runs/{run_id}"
+summary = "Cancel an EPT run"
+response_model = "ept.features.job_runner.models:RunStatusResponse"
+
+[tests]
+unit = "tests/features/job_runner/test_job_runner.py"
+integration = "tests/features/job_runner/test_job_runner.py"
