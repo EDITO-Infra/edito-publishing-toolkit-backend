@@ -29,7 +29,7 @@ S3_UPLOAD_SMALL_AVG_BYTES = 1 * 2**20
 S3_UPLOAD_MANY_FILES = 1000
 S3_UPLOAD_SMALL_CHUNK_BYTES = 5 * 2**20
 S3_UPLOAD_SMALL_MAX_CONCURRENCY = 24
-S3_UPLOAD_LARGE_MAX_CONCURRENCY = 16
+S3_UPLOAD_LARGE_MAX_CONCURRENCY = 8
 
 # Some HTTP sources (e.g. GeoNetwork behind a sticky load balancer) answer the
 # first GET with a transient 404 while a plain browser fetch succeeds. Retry
