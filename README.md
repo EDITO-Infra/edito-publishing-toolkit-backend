@@ -11,8 +11,8 @@ Run EPT on EDITO with zero install: launch the [service playground](https://data
 To run EPT yourself, you need [`uv`](https://docs.astral.sh/uv/) (it installs the Python version required by `pyproject.toml` automatically) and a clone:
 
 ```bash
-git clone https://github.com/EDITO-Infra/edito-publishing-toolkit.git
-cd edito-publishing-toolkit
+git clone https://github.com/EDITO-Infra/edito-publishing-toolkit-backend.git
+cd edito-publishing-toolkit-backend
 uv sync
 uv run uvicorn ept.api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
