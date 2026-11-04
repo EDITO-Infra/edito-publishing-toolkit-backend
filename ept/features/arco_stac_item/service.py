@@ -125,7 +125,12 @@ def _resolve_assets_target(request: ArcoStacItemRequest) -> str:
 def _plan_conversions(
     item: dict[str, Any], request: ArcoStacItemRequest
 ) -> list[tuple[str, dict[str, Any], Conversion]]:
-    """Decide per asset: explicit ``conversions`` mapping wins, else auto-detect."""
+    """Decide per asset: explicit ``conversions`` mapping wins, else auto-detect.
+
+    Auto-detected conversions are filtered by the request's ``output_format``
+    list (a conversion without a declared ``output_format``, e.g. upload, is
+    never filtered); explicit mappings bypass the filter.
+    """
     assets = item.get("assets") or {}
     if not isinstance(assets, dict):
         raise ValueError("Item 'assets' must be an object.")
@@ -138,6 +143,13 @@ def _plan_conversions(
             conversion = detect_conversion(
                 href=str(asset.get("href", "")), media_type=str(asset.get("type", ""))
             )
+            if (
+                conversion is not None
+                and request.output_format
+                and conversion.output_format is not None
+                and conversion.output_format not in request.output_format
+            ):
+                conversion = None
         if conversion is not None:
             plans.append((str(key), asset, conversion))
     return plans
@@ -313,11 +325,19 @@ def _read_item(source_uri: str, request: ArcoStacItemRequest) -> dict[str, Any]:
     return item
 
 
-def _storage_options(request: ArcoStacItemRequest) -> dict[str, str]:
+def _storage_options(request: ArcoStacItemRequest) -> dict[str, object]:
     """Request-scoped options, or {} to let s3fs fall back to the S3_* environment."""
     if request.endpoint_url and request.access_key_id and request.secret_access_key:
-        return request.storage_options()
-    return {}
+        options: dict[str, object] = request.storage_options()
+    else:
+        options = {}
+    # Explicit credentials must not inherit an unrelated AWS_PROFILE from the
+    # EPT process: a profile missing from ~/.aws/config aborts session
+    # construction with ProfileNotFound. s3fs forwards this public botocore
+    # session override to aiobotocore.AioSession (same pattern as
+    # resolve_s3_storage_options and zarr/write._s3_client).
+    options["session_vars"] = {"profile": (None, None, None, None)}
+    return options
 
 
 def _write_item(item: dict[str, Any], target_uri: str, request: ArcoStacItemRequest) -> None:

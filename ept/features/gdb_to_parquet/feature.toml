@@ -16,7 +16,7 @@ router = "ept.features.gdb_to_parquet.routes:router"
 
 [[api.routes]]
 method = "POST"
-path = "/v1/transform/gdb-to-parquet"
+path = "/v1/conversions/gdb/parquet"
 summary = "Convert GDB to GeoParquet"
 request_model = "ept.features.gdb_to_parquet.models:GdbToParquetRequest"
 response_model = "ept.features.gdb_to_parquet.models:GdbToParquetResponse"

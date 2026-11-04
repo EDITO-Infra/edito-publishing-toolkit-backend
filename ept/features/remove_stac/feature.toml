@@ -16,7 +16,7 @@ router = "ept.features.remove_stac.routes:router"
 
 [[api.routes]]
 method = "POST"
-path = "/v1/edito/stac/remove"
+path = "/v1/edito/stac/jobs/removal"
 summary = "Queue STAC removal"
 request_model = "ept.features.remove_stac.models:RemoveStacRequest"
 response_model = "ept.features.remove_stac.models:RemoveStacResponse"

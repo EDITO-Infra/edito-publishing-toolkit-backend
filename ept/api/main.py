@@ -1,4 +1,4 @@
-"""Entrypoint for starting the EPT API with uvicorn. use ``python -m ept.api.main`` to run the API with default settings."""
+"""Entrypoint for starting the EPT API with uvicorn. Use ``python -m ept.api.main`` to run the API with default settings."""
 
 from __future__ import annotations
 

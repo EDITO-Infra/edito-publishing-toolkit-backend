@@ -12,11 +12,11 @@ from .service import netcdf_to_stac_item
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/v1/metadata/netcdf", tags=["Metadata Conversion", "netcdf", "convert"])
+router = APIRouter(prefix="/v1/conversions", tags=["Metadata Conversion", "netcdf", "convert"])
 
 
 @router.post(
-    "/to-stac-item",
+    "/netcdf/stac-item",
     response_model=NetcdfToStacItemResponse,
     summary="Create a STAC Item from NetCDF metadata",
     description=(

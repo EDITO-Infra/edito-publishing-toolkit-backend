@@ -1,11 +1,13 @@
 """Core service routes for the EPT API shell. Separate from dynamically loaded feature routes.
-Allows tests on just the core API(ex. auth) without loading all feature routes."""
+Allows tests on just the core API (ex. auth) without loading all feature routes."""
 
 from __future__ import annotations
 
+import copy
+
 from fastapi import FastAPI
 from fastapi.openapi.docs import get_swagger_ui_html
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
 
@@ -52,8 +54,23 @@ def register_service_routes(app: FastAPI) -> None:
 
     @app.get("/docs", include_in_schema=False)
     async def custom_swagger_ui_html() -> HTMLResponse:
-        """Serve Swagger UI for the generated OpenAPI schema."""
+        """Serve Swagger UI over the docs-only OpenAPI schema."""
         return get_swagger_ui_html(
-            openapi_url="/openapi.json",
+            openapi_url="/docs/openapi.json",
             title=f"{app.title} - Swagger UI",
         )
+
+    @app.get("/docs/openapi.json", include_in_schema=False)
+    async def docs_openapi_schema() -> JSONResponse:
+        """Swagger UI view of the OpenAPI schema: one tag per operation.
+
+        The full schema with every tag stays at /openapi.json for clients that
+        filter features by tag; here each operation keeps only its first tag,
+        which is the curated group from openapi_tags.
+        """
+        schema = copy.deepcopy(app.openapi())
+        for item in schema.get("paths", {}).values():
+            for operation in item.values():
+                if isinstance(operation, dict) and "tags" in operation:
+                    operation["tags"] = operation["tags"][:1]
+        return JSONResponse(schema)

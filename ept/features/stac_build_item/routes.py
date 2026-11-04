@@ -13,7 +13,7 @@ from .models import BuildItemRequest, BuildItemResponse
 from .service import build_item
 
 
-router = APIRouter(prefix="/v1/stac/build", tags=["Make STAC", "build", "item"])
+router = APIRouter(prefix="/v1/stac/objects", tags=["Make STAC", "build", "item"])
 
 DEFAULT_EDITO_STAC_API_URL = "https://api.dive.edito.eu/data"
 
@@ -85,7 +85,7 @@ REQUEST_EXAMPLES = {
         "a value ending in `.json` names the object file itself. Set `local_output` "
         "to a directory on the EPT filesystem to write there instead. Link hrefs "
         "are plain and need "
-        "not exist yet, so assemble can stitch trees afterwards. Structural spec "
+        "not exist yet, so the tree routes can stitch trees afterwards. Structural spec "
         "violations come back as `warnings`. Requires "
         "`Authorization: Bearer <access_token>`."
     ),
@@ -93,6 +93,47 @@ REQUEST_EXAMPLES = {
     openapi_extra={"requestBody": {"content": {"application/json": {"examples": REQUEST_EXAMPLES}}}},
 )
 async def build_item_route(
+    request: BuildItemRequest,
+    edito_auth: EditoBearerAuthDep,
+    http_client: HttpClientDep,
+) -> BuildItemResponse:
+    return await _run_build(request, edito_auth, http_client)
+
+
+@router.put(
+    "/item",
+    response_model=BuildItemResponse,
+    summary="Replace a STAC Item",
+    operation_id="replaceStacItemV1",
+    description=(
+        "Edit an existing STAC Item: the base comes from `source_url` (fetched, "
+        "SSRF-guarded) or inline `stac_json`; provided fields override it with a "
+        "shallow merge (provided fields win, the base's other fields survive; "
+        "`null` does not delete). Omit `target` to preview the replacement; set "
+        "`target`/`local_output` to write it — PUT replaces the object at the "
+        "target, and an existing target without `overwrite=true` fails with 409. "
+        "Requires `Authorization: Bearer <access_token>`."
+    ),
+    responses=problem_responses(upstream_backed=True, upstream_label="Remote STAC source"),
+)
+async def replace_item_route(
+    request: BuildItemRequest,
+    edito_auth: EditoBearerAuthDep,
+    http_client: HttpClientDep,
+) -> BuildItemResponse:
+    if request.stac_json is None and request.source_url is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "PUT replaces an existing Item: provide `stac_json` (inline base) or "
+                "`source_url` (fetch the current object). To create one from fields, "
+                "use POST /v1/stac/objects/item."
+            ),
+        )
+    return await _run_build(request, edito_auth, http_client)
+
+
+async def _run_build(
     request: BuildItemRequest,
     edito_auth: EditoBearerAuthDep,
     http_client: HttpClientDep,

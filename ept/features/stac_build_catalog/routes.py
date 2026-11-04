@@ -13,7 +13,7 @@ from .models import BuildCatalogRequest, BuildCatalogResponse
 from .service import build_catalog
 
 
-router = APIRouter(prefix="/v1/stac/build", tags=["Make STAC", "build", "catalog"])
+router = APIRouter(prefix="/v1/stac/objects", tags=["Make STAC", "build", "catalog"])
 
 DEFAULT_EDITO_STAC_API_URL = "https://api.dive.edito.eu/data"
 

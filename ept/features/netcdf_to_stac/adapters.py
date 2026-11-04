@@ -70,6 +70,9 @@ def build_item(
     if instant is not None:
         properties["datetime"] = instant.isoformat()
     else:
+        # STAC 1.1 requires the `datetime` key (null for intervals) — same
+        # serialization the ISO19139 converter emits for date ranges.
+        properties["datetime"] = None
         properties["start_datetime"] = start_datetime.isoformat()
         properties["end_datetime"] = end_datetime.isoformat()
 
@@ -175,6 +178,11 @@ def item_properties(summary: DatasetSummary, extra: dict[str, Any]) -> dict[str,
         name: {key: value for key in VARIABLE_KEYS if (value := getattr(var, key)) is not None}
         for name, var in summary.variables.items()
     }
+    institution = properties.get("institution")
+    if institution:
+        # STAC Provider objects need only `name`; the raw CF attr stays too.
+        # honey: single institution string; split when real files carry lists.
+        properties["providers"] = [{"name": institution}]
     properties.update(extra)
     return properties
 

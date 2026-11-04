@@ -63,7 +63,7 @@ _UPLOAD_EXAMPLES = {
 
 
 @router.post(
-    "/upload",
+    "/uploads",
     response_model=UploadS3Response,
     summary="Upload to S3",
     operation_id="uploadToS3V1",

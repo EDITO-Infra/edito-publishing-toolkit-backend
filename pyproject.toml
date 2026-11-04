@@ -45,6 +45,7 @@ dependencies = [
   "scipy>=1.18.1",
   "pillow>=12.3.0",
   "ruff>=0.17.1",
+  "rioxarray>=0.23.0",
 ]
 
 [project.scripts]

@@ -69,7 +69,7 @@ def test_conversion_builds_declared_sub_requests():
     assert sub.source_uri == "https://erddap.example.org/a.nc"
     assert sub.bucket == "bkt"
     assert sub.target == "prefix"
-    assert sub.output_name == "my-data.zarr"
+    assert sub.output_name is None  # store name derives from the source URI
     assert sub.session_token == "tok"
     assert sub.overwrite is True
 
@@ -158,6 +158,33 @@ def test_explicit_mappings_win_and_validate_against_the_registry():
     # ...and the service-level lookup stays defensive.
     with pytest.raises(ValueError, match="Unknown conversion"):
         _explicit_conversion("download", item["assets"]["download"], {"download": "to-parquet"})
+
+
+@unit
+def test_output_format_filters_autodetect_but_not_explicit_mappings():
+    item = _item(
+        {
+            "netcdf": {"href": "https://x.org/data.nc"},
+            "geodatabase": {"href": "https://x.org/data.gdb.zip"},
+            "ambiguous": {"href": "https://x.org/data.zip"},
+        }
+    )
+    # Only zarr outputs: the gdb asset is skipped (no plan), zip stays ambiguous.
+    request = _request(output_format=["zarr"])
+    assert [(k, c.key) for k, _, c in _plan_conversions(item, request)] == [("netcdf", "nc-to-zarr")]
+    # Both formats = no filter effect.
+    both = _request(output_format=["zarr", "parquet"])
+    assert [(k, c.key) for k, _, c in _plan_conversions(item, both)] == [
+        ("netcdf", "nc-to-zarr"),
+        ("geodatabase", "gdb-to-parquet"),
+    ]
+    # Explicit mappings bypass the filter; upload has no output_format and is never filtered.
+    explicit = _request(output_format=["zarr"], conversions={"geodatabase": "gdb-to-parquet", "ambiguous": "upload"})
+    assert [(k, c.key) for k, _, c in _plan_conversions(item, explicit)] == [
+        ("netcdf", "nc-to-zarr"),
+        ("geodatabase", "gdb-to-parquet"),
+        ("ambiguous", "upload"),
+    ]
 
 
 @unit

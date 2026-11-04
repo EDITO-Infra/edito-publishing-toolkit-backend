@@ -148,6 +148,7 @@ def create_app() -> FastAPI:
             {"name": "Make STAC", "description": "Build, assemble and suggest STAC catalogs, collections and items."},
             {"name": "STAC Tools", "description": "Validate, find and fetch STAC objects."},
             {"name": "Storage & Assets", "description": "Upload files and STAC item assets to S3-compatible storage."},
+            {"name": "EPT Job Runner", "description": "Run long-running feature operations as background EPT runs: submit, poll, cancel."},
             {"name": "Publish STAC", "description": "List EDITO project catalogs, publish and remove STAC metadata, track publication jobs."},
             {"name": "Monitoring", "description": "Buffered API log events and process status."},
             {"name": "Authentication", "description": "EDITO API tokens and request-scoped S3 credentials."},

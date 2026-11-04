@@ -12,15 +12,18 @@ Both the API and the frontend are published on GHCR — pull and run them
 without cloning any repository:
 
 ```bash
-# Backend — no env needed, defaults are baked in
-docker run -d --name ept-api -p 8000:8000 \
-  -v ept_workspace:/app/workspace -v ept_data:/app/data \
-  ghcr.io/edito-infra/edito-publishing-toolkit-backend:1.1.0-beta
+export EPT_VERSION=latest # or another tag
 
-# Frontend — proxies /api to the backend
-docker run -d --name ept-frontend -p 3000:8080 \
-  -e EPT_API_UPSTREAM=http://ept-api:8000 --link ept-api \
-  ghcr.io/edito-infra/edito-publishing-toolkit-frontend:1.1.0-beta
+docker network create ept-net
+
+docker run -d --name ept-api --network ept-net -p 8000:8000 \
+  -v ept_workspace:/app/workspace -v ept_data:/app/data \
+  ghcr.io/edito-infra/edito-publishing-toolkit-backend:${EPT_VERSION}
+
+# frontend — proxies /api to the backend
+docker run -d --name ept-frontend --network ept-net -p 3000:8080 \
+  -e EPT_API_UPSTREAM=http://ept-api:8000 \
+  ghcr.io/edito-infra/edito-publishing-toolkit-frontend:${EPT_VERSION}
 ```
 
 - Frontend (UI): `http://localhost:3000` — it proxies `/api` to the backend

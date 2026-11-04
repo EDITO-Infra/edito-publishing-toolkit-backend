@@ -8,11 +8,11 @@ from .models import GdbToParquetRequest, GdbToParquetResponse
 from .service import gdb_to_parquet
 
 
-router = APIRouter(prefix="/v1/transform", tags=["Transform Data", "gdb", "parquet", "convert"])
+router = APIRouter(prefix="/v1/conversions", tags=["Transform Data", "gdb", "parquet", "convert"])
 
 
 @router.post(
-    "/gdb-to-parquet",
+    "/gdb/parquet",
     response_model=GdbToParquetResponse,
     summary="Convert GDB to GeoParquet",
     operation_id="gdbToParquetV1",

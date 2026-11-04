@@ -9,15 +9,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN apt-get update \
-	&& apt-get install -y --no-install-recommends build-essential curl \
-	&& rm -rf /var/lib/apt/lists/*
-
 COPY pyproject.toml README.md mkdocs.yml VERSION ./
 COPY ept ./ept
 COPY docs ./docs
 
-RUN uv pip install --system --no-deps . \
+RUN --mount=type=cache,target=/root/.cache/uv \
+	uv pip install --system --no-deps . \
 	&& uv pip install --system . \
 	# Bake the handbook into the image so the running API serves docs that
 	# match its own version (mounted at /handbook by ept.api.app).

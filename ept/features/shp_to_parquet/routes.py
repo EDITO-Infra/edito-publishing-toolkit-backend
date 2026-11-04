@@ -8,11 +8,11 @@ from .models import ShpToParquetRequest, ShpToParquetResponse
 from .service import shp_to_parquet
 
 
-router = APIRouter(prefix="/v1/transform", tags=["Transform Data", "shp", "parquet", "convert"])
+router = APIRouter(prefix="/v1/conversions", tags=["Transform Data", "shp", "parquet", "convert"])
 
 
 @router.post(
-    "/shp-to-parquet",
+    "/shp/parquet",
     response_model=ShpToParquetResponse,
     summary="Convert Shapefile to GeoParquet",
     operation_id="shpToParquetV1",

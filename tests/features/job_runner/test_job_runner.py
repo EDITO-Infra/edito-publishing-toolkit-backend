@@ -266,7 +266,7 @@ def test_list_operations_exposes_endpoint(client):
     response = test_client.get("/v1/runs/operations")
     assert response.status_code == 200
     operations = {op["key"]: op for op in response.json()["operations"]}
-    assert operations["stac.validate"]["endpoint"] == "POST /v1/stac/validate"
+    assert operations["stac.validate"]["endpoint"] == "POST /v1/stac/validations"
 
 
 @integration

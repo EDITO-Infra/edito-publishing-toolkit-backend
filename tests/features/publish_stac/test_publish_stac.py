@@ -106,7 +106,7 @@ def test_publish_stac_translates_request_to_upstream_publish_call(publishing_htt
     """
     response = asyncio.run(
         _post(
-            "/v1/edito/stac/publish",
+            "/v1/edito/stac/jobs/publication",
             {
                 "remote_stac_url": "https://example.test/catalog.json",
                 "catalog_id": "projects/demo",
@@ -136,7 +136,7 @@ def test_publish_stac_rejects_missing_refresh_token_header():
     """Publication job submission needs bearer and refresh-token authentication."""
     response = asyncio.run(
         _post_with_headers(
-            "/v1/edito/stac/publish",
+            "/v1/edito/stac/jobs/publication",
             {
                 "remote_stac_url": "https://example.test/catalog.json",
                 "catalog_id": "projects/demo",
@@ -152,7 +152,7 @@ def test_publish_stac_rejects_missing_refresh_token_header():
         "title": "Refresh token required",
         "status": 401,
         "detail": "Provide X-EDITO-Refresh-Token when submitting a publication or removal job.",
-        "instance": "/v1/edito/stac/publish",
+        "instance": "/v1/edito/stac/jobs/publication",
         "reason": "missing_refresh_token",
     }
 
@@ -161,7 +161,7 @@ def test_publish_stac_rejects_missing_refresh_token_header():
 def test_publish_stac_openapi_documents_body_auth_and_examples():
     """Swagger must show the JSON body and both auth headers needed to publish."""
     schema = app.openapi()
-    operation = schema["paths"]["/v1/edito/stac/publish"]["post"]
+    operation = schema["paths"]["/v1/edito/stac/jobs/publication"]["post"]
 
     assert operation["security"] == [{"HTTPBearer": []}]
     assert operation["operationId"] == "queueStacPublicationV1"
@@ -198,7 +198,7 @@ def test_publish_stac_validation_problem_uses_json_pointer():
     """This test ensures that the FastAPI validation error response uses JSON Pointer in the 
     errors list to indicate which field is missing or invalid, as per the OpenAPI specification."""
     response = asyncio.run(
-        _post("/v1/edito/stac/publish", {"catalog_id": "projects/demo"})
+        _post("/v1/edito/stac/jobs/publication", {"catalog_id": "projects/demo"})
     )
 
     assert response.status_code == 422
@@ -208,7 +208,7 @@ def test_publish_stac_validation_problem_uses_json_pointer():
         "title": "Invalid request",
         "status": 422,
         "detail": "The request body is missing required fields.",
-        "instance": "/v1/edito/stac/publish",
+        "instance": "/v1/edito/stac/jobs/publication",
         "reason": "invalid_request",
         "errors": [{"detail": "Field is required.", "pointer": "/remote_stac_url"}],
     }
@@ -219,7 +219,7 @@ def test_publish_stac_rejects_non_project_catalog_id(publishing_http_client):
     """Publication outside the projects namespace must not reach upstream."""
     response = asyncio.run(
         _post(
-            "/v1/edito/stac/publish",
+            "/v1/edito/stac/jobs/publication",
             {
                 "remote_stac_url": "https://example.test/catalog.json",
                 "catalog_id": "users/alice",
@@ -254,7 +254,7 @@ def test_publish_stac_rejects_path_traversal_in_catalog_id(
     """catalog_id builds the upstream parent path, so traversal must not pass."""
     response = asyncio.run(
         _post(
-            "/v1/edito/stac/publish",
+            "/v1/edito/stac/jobs/publication",
             {
                 "remote_stac_url": "https://example.test/catalog.json",
                 "catalog_id": catalog_id,
@@ -283,7 +283,7 @@ def test_publish_stac_rejects_non_http_remote_stac_url(publishing_http_client, r
     """The worker reads non-http(s) values as local files, so they must not reach it."""
     response = asyncio.run(
         _post(
-            "/v1/edito/stac/publish",
+            "/v1/edito/stac/jobs/publication",
             {
                 "remote_stac_url": remote_stac_url,
                 "catalog_id": "projects/demo",
@@ -302,7 +302,7 @@ def test_publish_stac_forwards_validated_url_as_plain_string(publishing_http_cli
     url = "https://minio.dive.edito.eu/oidc-alice/catalog.json"
     response = asyncio.run(
         _post(
-            "/v1/edito/stac/publish",
+            "/v1/edito/stac/jobs/publication",
             {"remote_stac_url": url, "catalog_id": "projects/demo"},
         )
     )
@@ -318,7 +318,7 @@ def test_publish_stac_rejects_unsupported_request_fields():
     """The public publish request body rejects undocumented caller fields."""
     response = asyncio.run(
         _post(
-            "/v1/edito/stac/publish",
+            "/v1/edito/stac/jobs/publication",
             {
                 "remote_stac_url": "https://example.test/catalog.json",
                 "catalog_id": "projects/demo",
@@ -354,7 +354,7 @@ def test_publish_stac_maps_upstream_rejection():
     try:
         response = asyncio.run(
             _post(
-                "/v1/edito/stac/publish",
+                "/v1/edito/stac/jobs/publication",
                 {
                     "remote_stac_url": "https://example.test/catalog.json",
                     "catalog_id": "projects/demo",
@@ -371,7 +371,7 @@ def test_publish_stac_maps_upstream_rejection():
         "title": "Publication request rejected",
         "status": 401,
         "detail": "The publication request could not be accepted.",
-        "instance": "/v1/edito/stac/publish",
+        "instance": "/v1/edito/stac/jobs/publication",
         "reason": "publication_request_rejected",
         "upstream_response": {
             "detail": "bearer token not valid",
@@ -398,7 +398,7 @@ def test_publish_stac_maps_upstream_unavailability():
     try:
         response = asyncio.run(
             _post(
-                "/v1/edito/stac/publish",
+                "/v1/edito/stac/jobs/publication",
                 {
                     "remote_stac_url": "https://example.test/catalog.json",
                     "catalog_id": "projects/demo",
@@ -416,7 +416,7 @@ def test_publish_stac_maps_upstream_unavailability():
         "status": 502,
         "detail": "EPT could not complete the publication request because a required service is unavailable.",
         "reason": "publication_backend_unavailable",
-        "instance": "/v1/edito/stac/publish",
+        "instance": "/v1/edito/stac/jobs/publication",
     }
 
 
@@ -465,7 +465,7 @@ def test_publish_stac_maps_invalid_queued_response_to_502(publishing_http_client
 
     response = asyncio.run(
         _post(
-            "/v1/edito/stac/publish",
+            "/v1/edito/stac/jobs/publication",
             {
                 "remote_stac_url": "https://example.test/catalog.json",
                 "catalog_id": "projects/demo",
@@ -537,7 +537,7 @@ def test_publish_stac_queues_live_publication_job(
     """Queue a real publication job when integration tests are selected."""
     response = asyncio.run(
         _submit_live(
-            "/v1/edito/stac/publish",
+            "/v1/edito/stac/jobs/publication",
             {
                 "remote_stac_url": live_stac_source,
                 "catalog_id": live_catalog_id,

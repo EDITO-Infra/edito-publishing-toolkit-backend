@@ -38,6 +38,7 @@ class Conversion:
     media_type: str
     fields: dict[str, str]
     values: dict[str, str]
+    output_format: str | None = None
     detect_media: tuple[str, ...] = ()
     detect_suffixes: tuple[str, ...] = ()
     detect_markers: tuple[str, ...] = ()
@@ -112,6 +113,7 @@ def _load() -> dict[str, Conversion]:
             request_model=model,
             asset_key=str(table["asset_key"]),
             media_type=str(table["media_type"]),
+            output_format=str(table["output_format"]) if table.get("output_format") else None,
             fields={str(k): str(v) for k, v in table.get("fields", {}).items()},
             values={str(k): str(v) for k, v in table.get("values", {}).items()},
             detect_media=tuple(str(m).lower() for m in detect.get("media_type", [])),

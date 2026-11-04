@@ -6,8 +6,10 @@ from ept.infrastructure.services.edito_auth import S3ConnectionParameters
 class ListS3BucketsRequest(S3ConnectionParameters):
     """S3 connection parameters used to list the caller's buckets.
 
-    Pass the `s3_credentials` returned by POST /v1/auth: `endpoint_url`,
-    `access_key_id`, `secret_access_key`, and `session_token`.
+    Supplied as request headers on GET /v1/storage/s3/buckets — the
+    `s3_credentials` returned by POST /v1/auth: `X-EDITO-S3-Endpoint-Url`,
+    `X-EDITO-S3-Access-Key-Id`, `X-EDITO-S3-Secret-Access-Key`, and
+    `X-EDITO-S3-Session-Token`.
     """
 
 

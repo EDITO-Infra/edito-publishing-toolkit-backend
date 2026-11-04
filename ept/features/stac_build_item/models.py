@@ -141,13 +141,13 @@ class BuildItemRequest(BaseModel):
                 raise ValueError("each link needs non-empty `rel` and `href`")
         return value
 
-    # ── escape hatch ────────────────────────────────────────────────────────
+    # ── escape hatch ────────────────────────────────────────────────────
     extra_fields: dict = Field(
         default_factory=dict,
         description="Arbitrary top-level fields merged into the built object last (e.g. extension fields).",
     )
 
-    # ── export (omit `target` to preview only) ──────────────────────────────
+    # ── export (omit `target` to preview only) ──────────────────────────
     bucket: str | None = Field(
         default=None,
         description=(

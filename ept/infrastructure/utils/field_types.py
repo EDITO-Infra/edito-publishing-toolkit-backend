@@ -21,4 +21,5 @@ def _not_set(value: Any) -> Any:
     return value or None
 
 
+
 LocalOutput = Annotated[str | None, BeforeValidator(_not_set)]

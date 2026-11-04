@@ -2,7 +2,7 @@
 
 Every feature declares the release it ships in via ``[feature] release`` in its
 ``feature.toml``. The registry mounts only the routers of features whose release
-is at or below the active release (``EPT_ACTIVE_RELEASE``, default ``1.1.0``), so
+is at or below the active release (``EPT_ACTIVE_RELEASE``, default ``1.2.0``), so
 features built for a future release can live in the tree — fully validated and
 tested — without exposing routes, models, or OpenAPI entries in the current one.
 
@@ -130,11 +130,11 @@ class FeatureRegistry:
     def active_release(self) -> tuple[int, ...]:
         """Return the currently released version features are gated against.
 
-        ``EPT_ACTIVE_RELEASE`` defaults to ``1.1.0``. Features whose declared
+        ``EPT_ACTIVE_RELEASE`` defaults to ``1.2.0``. Features whose declared
         release is higher exist in the repository but are not mounted, so the
         public API surface matches what this deployment actually supports.
         """
-        return _release_tuple(os.getenv("EPT_ACTIVE_RELEASE", "1.1.0"))
+        return _release_tuple(os.getenv("EPT_ACTIVE_RELEASE", "1.2.0"))
 
     def is_active(self, contract: FeatureContract) -> bool:
         """Return whether a feature's release is at or below the active release.

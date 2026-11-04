@@ -9,7 +9,7 @@ updated Item JSON back to S3. The Item is read from a local path, an
 
 | Method | Path | Auth | Description |
 | --- | --- | --- | --- |
-| `POST` | `/v1/arco/stac-item` | Bearer access token | See below |
+| `POST` | `/v1/conversions/stac-item/arco` | Bearer access token | See below |
 
 The same pipeline runs as a background job: submit the identical payload to
 `POST /v1/runs` with `"operation": "arco.stac-item"` and poll
@@ -50,7 +50,8 @@ A plain `.zip` is ambiguous and is never auto-converted — map it explicitly.
 ## Output locations
 
 - **Updated Item** — `item_target`: the Item JSON is written to
-  `s3://<bucket>/<item_target>/<item_id>.json`. Omit `item_target` to replace
+  `s3://<bucket>/<item_target>/<item_id>.json`. A value ending in `.json`
+  is used as the file name itself. Omit `item_target` to replace
   the Item at its source location in place (S3 sources only); for a link or
   local source the updated Item is written to the default location
   `s3://<bucket>/<item_id>.json` (bucket root).
@@ -72,11 +73,12 @@ new suffixes on every re-run.
 | Field | Meaning |
 | --- | --- |
 | `source_uri` | The STAC Item JSON — local path, `s3://` URI, or HTTP(S) URL. A link to a hosted Item is the typical input; there is no need to stage it on S3 first. |
-| `item_target` | Prefix for the updated Item JSON; omit to rewrite the source Item in place (S3 only) or write the updated Item to `s3://<bucket>/<item_id>.json`. |
+| `item_target` | Prefix for the updated Item JSON; a value ending in `.json` is used as the file name itself. Omit to rewrite the source Item in place (S3 only) or write the updated Item to `s3://<bucket>/<item_id>.json`. |
 | `assets_target` | Prefix for converted outputs; defaults to `item_target`, else the source folder (S3) or bucket root. |
 | `bucket` | Destination bucket for both outputs; defaults to `oidc-<username>` from the bearer token. |
 | `item_id` | Optional id override; defaults to the Item's existing id. |
 | `conversions` | Optional `{asset key or href substring: declared conversion key}` table. |
+| `output_format` | Optional list restricting which conversion outputs are produced (`"zarr"`, `"parquet"`); null = auto-dispatch every detected data asset. Auto-detected assets whose format is not in the list are skipped (not rejected); explicit `conversions` mappings take precedence; `upload` is never filtered. |
 | `overwrite` | Default `false`; existing outputs cause HTTP 409. |
 | `endpoint_url`, `access_key_id`, `secret_access_key`, `session_token` | Request-scoped S3 credentials from [`POST /v1/auth`](../auth.md#response); forwarded to every conversion service. Optional — the service-level `S3_*` environment is used otherwise. |
 
@@ -111,5 +113,5 @@ GeoParquet), `stage_timings_ms` per pipeline stage, and `status`.
   mapped to `shp-to-parquet` must contain at least one `.shp` (with its
   sidecar files); every `.shp` becomes one GeoParquet output.
 - The Item is not validated against the STAC schema here — run
-  [`validate`](validate-stac.md) or [assemble](assemble-stac.md) before
+  [`validate`](validate-stac.md) or [create catalog tree](create-catalog-tree.md) before
   [publishing](publish-stac.md).

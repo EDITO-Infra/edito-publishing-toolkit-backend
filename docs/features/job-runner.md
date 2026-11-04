@@ -10,7 +10,7 @@ EPT has two background mechanisms with different vocabularies:
 | --- | --- | --- |
 | Executes | Inside the EPT API process | On the external EDITO publishing service |
 | Identifier | `run_id`, prefixed `run-` | `job_id` (publisher UUID) |
-| Endpoints | `GET/POST/DELETE /v1/runs`, `GET /v1/runs/operations` | `GET /v1/edito/publish/jobs/{job_id}` |
+| Endpoints | `GET/POST/DELETE /v1/runs`, `GET /v1/runs/operations` | `GET /v1/edito/stac/jobs/{job_id}` |
 | Used by | Feature operations such as `stac.validate` | [Publish STAC](publish-stac.md) and [Remove STAC](remove-stac.md) |
 
 ## Endpoints

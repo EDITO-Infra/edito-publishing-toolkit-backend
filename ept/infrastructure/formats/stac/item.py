@@ -132,19 +132,6 @@ def validate_item(item: dict[str, Any]) -> None:
     # run_dict enriches nested link dicts in place (e.g. method: GET) on a
     # shallow copy — deepcopy so the caller's object stays untouched.
     validation_copy = copy.deepcopy(item)
-    # stac-valid's fast-path schema optimizer collapses the properties oneOf,
-    # so interval-only items (start_datetime + end_datetime, no datetime) are
-    # falsely rejected. Inject a derived datetime into the throwaway copy;
-    # only when both bounds exist, so genuinely incomplete intervals still fail.
-    # honey: revisit when stac-valid >4.6.1 fixes the optimizer
-    props = validation_copy.get("properties")
-    if (
-        isinstance(props, dict)
-        and "datetime" not in props
-        and "start_datetime" in props
-        and "end_datetime" in props
-    ):
-        props["datetime"] = props["start_datetime"]
     validator.run_dict(validation_copy)
     if not validator.valid:
         errors = [

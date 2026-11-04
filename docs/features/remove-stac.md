@@ -5,7 +5,7 @@ Queue removal of a project catalog from the EDITO STAC API. The job runs asynchr
 ## Endpoint
 
 ```text
-POST /v1/edito/stac/remove
+POST /v1/edito/stac/jobs/removal
 ```
 
 Authentication: `Authorization: Bearer <access_token>` **and** `X-EDITO-Refresh-Token: <refresh_token>`.
@@ -15,7 +15,7 @@ Authentication: `Authorization: Bearer <access_token>` **and** `X-EDITO-Refresh-
 Once you have the catalog ID of a catalog you own (see [Get my catalogs](get-my-catalogs.md)), use it directly in the request:
 
 ```bash
-curl -X POST "${EPT_API_URL}/v1/edito/stac/remove" \
+curl -X POST "${EPT_API_URL}/v1/edito/stac/jobs/removal" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "X-EDITO-Refresh-Token: ${REFRESH_TOKEN}" \
@@ -32,7 +32,7 @@ import os
 import httpx
 
 response = httpx.post(
-    f"{os.environ['EPT_API_URL']}/v1/edito/stac/remove",
+    f"{os.environ['EPT_API_URL']}/v1/edito/stac/jobs/removal",
     headers={
         "Authorization": f"Bearer {os.environ['ACCESS_TOKEN']}",
         "X-EDITO-Refresh-Token": os.environ["REFRESH_TOKEN"],
@@ -59,7 +59,7 @@ Responds `202 Accepted`:
 }
 ```
 
-Use the returned `job_id` with `GET /v1/edito/publish/jobs/{job_id}`.
+Use the returned `job_id` with `GET /v1/edito/stac/jobs/{job_id}`.
 
 ## Good to know
 

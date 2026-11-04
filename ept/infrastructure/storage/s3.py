@@ -36,8 +36,15 @@ from urllib.parse import quote, urlsplit
 from s3fs import S3FileSystem
 
 from ept.infrastructure.services.edito_auth import S3ConnectionParameters
+from ept.infrastructure.utils.names import safe_export_name, slugify
 
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    "get_from_s3", "ls_buckets", "ls_folder", "put_to_s3", "rm_from_s3", "s3_connect",
+    "is_s3_uri", "s3_endpoint_url", "resolve_s3_storage_options", "s3_url_to_fs",
+    "with_file_name", "full_s3_url", "safe_export_name", "slugify",
+]
 
 S3_ACCESS_KEY_ID_ENV = "S3_ACCESS_KEY_ID"
 S3_SECRET_KEY_ENV = "S3_SECRET_ACCESS_KEY"
@@ -106,28 +113,6 @@ def s3_endpoint_url(params: S3ConnectionParameters | None = None) -> str | None:
 
 
 _SAFE_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*$", re.IGNORECASE)
-_SLUG_RUN_PATTERN = re.compile(r"[^a-z0-9]+")
-
-
-def slugify(value: str, fallback: str = "output") -> str:
-    """Lowercase kebab-slug of ``value`` (non-alphanumeric runs → ``-``)."""
-
-    return _SLUG_RUN_PATTERN.sub("-", value.lower()).strip("-") or fallback
-
-
-def safe_export_name(value: str, fallback: str = "output") -> str:
-    """``value`` itself when safe as a file name / object key, else its slug.
-
-    Output names are derived from arbitrary caller input (STAC ids, file
-    stems) but must be safe on POSIX and as S3 keys: alphanumerics plus
-    ``. _ -``, starting with an alphanumeric, no ``..`` — so no path
-    separators, traversal, or shell-hostile characters.
-    """
-
-    value = value.strip()
-    if _SAFE_NAME_PATTERN.match(value) and ".." not in value:
-        return value
-    return slugify(value, fallback)
 
 
 def with_file_name(target: str, file_name: str) -> str:

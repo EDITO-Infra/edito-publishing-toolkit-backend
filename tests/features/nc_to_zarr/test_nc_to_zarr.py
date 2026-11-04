@@ -295,7 +295,7 @@ def test_transform_nc2zarr_route_converts_local_netcdf_to_local_zarr(tmp_path):
     with _authenticated_route():
         response = asyncio.run(
             _post(
-                "/v1/transform/nc-to-zarr",
+                "/v1/conversions/netcdf/zarr",
                 {
                     "source_uri": str(source),
                     "local_output": str(output_dir),

@@ -16,7 +16,7 @@ router = "ept.features.iso_to_stac_item.routes:router"
 
 [[api.routes]]
 method = "POST"
-path = "/v1/metadata/iso-to-stac-item"
+path = "/v1/conversions/iso/stac-item"
 summary = "Convert an ISO19139 record into a STAC Item"
 request_model = "ept.features.iso_to_stac_item.models:IsoToStacItemRequest"
 response_model = "ept.features.iso_to_stac_item.models:IsoToStacItemResponse"

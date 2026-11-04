@@ -9,7 +9,7 @@ from .dependencies import REFRESH_TOKEN_OPENAPI_PARAMETER, PublishingAuthDep
 from .models import PublishStacRequest, PublishStacResponse
 from .service import publish_stac
 
-router = APIRouter(prefix="/v1/edito/stac", tags=["Publish STAC", "publish"])
+router = APIRouter(prefix="/v1/edito/stac/jobs", tags=["Publish STAC", "publish"])
 
 PUBLISHING_UNAVAILABLE_EXAMPLE = {
     "type": "https://api.edito-publishing-toolkit.org/problems/publication-backend-unavailable",
@@ -30,7 +30,7 @@ PUBLISHING_REJECTED_EXAMPLE = {
 
 
 @router.post(
-    "/publish",
+    "/publication",
     response_model=PublishStacResponse,
     status_code=202,
     summary="Queue STAC publication",

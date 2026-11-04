@@ -49,7 +49,7 @@ def test_convert_local_record_to_s3_output(client: TestClient, iso_record: Path)
 
     headers = _auth_headers(client)
     response = client.post(
-        "/v1/metadata/iso-to-stac-item",
+        "/v1/conversions/iso/stac-item",
         json={"source_uri": str(iso_record), "target": "my-metadata"},
         headers=headers,
     )
@@ -68,7 +68,7 @@ def test_convert_with_local_output(client: TestClient, iso_record: Path, tmp_pat
     headers = _auth_headers(client)
     output_dir = tmp_path / "out"
     response = client.post(
-        "/v1/metadata/iso-to-stac-item",
+        "/v1/conversions/iso/stac-item",
         json={"source_uri": str(iso_record), "target": None, "local_output": str(output_dir)},
         headers=headers,
     )
@@ -84,7 +84,7 @@ def test_convert_with_local_output(client: TestClient, iso_record: Path, tmp_pat
 def test_missing_target_returns_422(client: TestClient, iso_record: Path) -> None:
     headers = _auth_headers(client)
     response = client.post(
-        "/v1/metadata/iso-to-stac-item",
+        "/v1/conversions/iso/stac-item",
         json={"source_uri": str(iso_record), "target": None},
         headers=headers,
     )
@@ -100,7 +100,7 @@ def test_missing_bbox_returns_422(client: TestClient, tmp_path: Path) -> None:
         encoding="utf-8",
     )
     response = client.post(
-        "/v1/metadata/iso-to-stac-item",
+        "/v1/conversions/iso/stac-item",
         json={"source_uri": str(broken)},
         headers=headers,
     )
@@ -113,7 +113,7 @@ def test_invalid_xml_returns_422(client: TestClient, tmp_path: Path) -> None:
     broken = tmp_path / "invalid.xml"
     broken.write_text("this is not xml", encoding="utf-8")
     response = client.post(
-        "/v1/metadata/iso-to-stac-item",
+        "/v1/conversions/iso/stac-item",
         json={"source_uri": str(broken)},
         headers=headers,
     )
@@ -124,7 +124,7 @@ def test_invalid_xml_returns_422(client: TestClient, tmp_path: Path) -> None:
 def test_missing_source_returns_404(client: TestClient, tmp_path: Path) -> None:
     headers = _auth_headers(client)
     response = client.post(
-        "/v1/metadata/iso-to-stac-item",
+        "/v1/conversions/iso/stac-item",
         json={"source_uri": str(tmp_path / "does-not-exist.xml")},
         headers=headers,
     )

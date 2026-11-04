@@ -12,11 +12,11 @@ from .service import zarr_to_stac_item
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/v1/metadata/zarr", tags=["Metadata Conversion", "zarr", "convert"])
+router = APIRouter(prefix="/v1/conversions", tags=["Metadata Conversion", "zarr", "convert"])
 
 
 @router.post(
-    "/to-stac-item",
+    "/zarr/stac-item",
     response_model=ZarrToStacItemResponse,
     summary="Create a STAC Item from Zarr metadata",
     description=(

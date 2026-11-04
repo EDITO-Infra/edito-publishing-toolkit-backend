@@ -2,7 +2,7 @@
 key = "storage.s3_list_buckets"
 release = "1.1.0"
 title = "List S3 buckets"
-description = "List the S3 buckets visible to the supplied EDITO S3 credentials, plus the caller's personal oidc-<username> bucket derived from the bearer token. Intended to run right after POST /v1/auth so clients can prefill the bucket field of storage requests."
+description = "List the S3 buckets visible to the caller's EDITO S3 credentials, plus the personal oidc-<username> bucket derived from the bearer token. After password login the bearer token is enough (EPT resolves the registered S3 session); the X-EDITO-S3-* headers optionally override it."
 depends_on = []
 
 [package]
@@ -16,10 +16,9 @@ python = ["ept.features.list_s3_buckets.service:list_s3_buckets"]
 router = "ept.features.list_s3_buckets.routes:router"
 
 [[api.routes]]
-method = "POST"
+method = "GET"
 path = "/v1/storage/s3/buckets"
 summary = "List S3 buckets"
-request_model = "ept.features.list_s3_buckets.models:ListS3BucketsRequest"
 response_model = "ept.features.list_s3_buckets.models:ListS3BucketsResponse"
 
 [tests]

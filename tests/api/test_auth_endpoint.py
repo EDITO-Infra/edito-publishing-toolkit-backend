@@ -6,20 +6,22 @@ refresh token for bearer tokens before calling protected API routes.
 
 import asyncio
 
+import jwt
+
 from ept.infrastructure.services.edito_auth import (
     EditoAuthResponse,
     EditoBearerAuthError,
     EditoTokenResponse,
     S3Credentials,
 )
+from tests.conftest import unit
 
 from .helpers import create_api_shell_test_app, request
-from tests.conftest import unit
 
 
 @unit
 def test_auth_endpoint_exchanges_username_password_for_tokens(monkeypatch):
-    """Password login returns API tokens and the caller's temporary S3 session."""
+    """Password login returns API tokens and the S3 session without touching S3."""
     app = create_api_shell_test_app()
     calls: list[dict] = []
     password = r'generated/secret\value"with/slash'
@@ -66,8 +68,56 @@ def test_auth_endpoint_exchanges_username_password_for_tokens(monkeypatch):
             "session_token": "temporary-session",
             "expiration": None,
         },
+        "s3_default_bucket": None,
     }
     assert calls == [{"username": "alice", "password": password}]
+
+
+@unit
+def test_auth_password_login_derives_default_bucket_and_caches_session(monkeypatch):
+    """A username claim yields the personal oidc-<username> bucket and the S3
+    session is registered per subject for later bearer-only calls."""
+    from ept.infrastructure.services.edito_auth import get_s3_session
+
+    app = create_api_shell_test_app()
+    access_token = jwt.encode(
+        {"sub": "user-1", "preferred_username": "alice"},
+        key="test-signing-key-not-verified-32b",
+        algorithm="HS256",
+    )
+
+    async def fake_exchange(_username: str, _password: str) -> EditoAuthResponse:
+        """Return a password-grant response with an S3 session."""
+        return EditoAuthResponse(
+            access_token=access_token,
+            refresh_token="refresh-secret",
+            token_type="bearer",
+            expires_in=300,
+            refresh_expires_in=1800,
+            s3_credentials=S3Credentials(
+                endpoint_url="https://s3.example.test",
+                access_key_id="temporary-key",
+                secret_access_key="temporary-secret",
+                session_token="temporary-session",
+            ),
+        )
+
+    monkeypatch.setattr("ept.api.auth.exchange_auth_credentials", fake_exchange)
+
+    response = asyncio.run(
+        request(
+            "POST",
+            "/v1/auth",
+            app=app,
+            data={"username": "alice", "password": "secret"},
+        )
+    )
+
+    assert response.status_code == 200
+    assert response.json()["s3_default_bucket"] == "oidc-alice"
+    cached = get_s3_session("user-1")
+    assert cached is not None
+    assert cached.access_key_id == "temporary-key"
 
 
 @unit
@@ -88,6 +138,7 @@ def test_auth_endpoint_exchanges_refresh_token_for_new_tokens(monkeypatch):
             expires_in=300,
             refresh_expires_in=1800,
         )
+
     # make sure the monkeypatch is applied to the correct function in the auth module (uses exchange_refresh_token from ept.infrastructure.services.edito_auth)
     monkeypatch.setattr("ept.api.auth.exchange_refresh_token", fake_exchange)
 
@@ -116,13 +167,20 @@ def test_auth_endpoint_rejects_ambiguous_grant():
             "POST",
             "/v1/auth",
             app=app,
-            data={"username": "alice", "password": "secret", "refresh_token": "refresh"},
+            data={
+                "username": "alice",
+                "password": "secret",
+                "refresh_token": "refresh",
+            },
         )
     )
 
     assert response.status_code == 422
     assert response.headers["content-type"] == "application/problem+json"
-    assert response.json()["type"] == "https://api.edito-publishing-toolkit.org/problems/invalid-request"
+    assert (
+        response.json()["type"]
+        == "https://api.edito-publishing-toolkit.org/problems/invalid-request"
+    )
 
 
 @unit
@@ -194,7 +252,7 @@ def test_auth_endpoint_hides_upstream_failure_details(monkeypatch):
             "POST",
             "/v1/auth",
             app=app,
-            data={"username": "alice", "password": "wrong-secret"}
+            data={"username": "alice", "password": "wrong-secret"},
         )
     )
 

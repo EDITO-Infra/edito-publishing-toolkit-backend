@@ -3,7 +3,7 @@
 Runs are queued on the EPT API process itself, polled and cancelled here via
 ``/v1/runs`` with ``run-``-prefixed identifiers. They are **not** the
 publish/remove jobs of the external EDITO publishing service, which are
-queued there and polled via ``/v1/edito/publish/jobs/{job_id}``.
+queued there and polled via ``/v1/edito/stac/jobs/{job_id}``.
 
 Operations are declared declaratively in ``operations.toml`` (this feature):
 each entry maps an operation key to a feature-provided runner callable and

@@ -2,7 +2,7 @@
 key = "stac.build_catalog"
 release = "1.1.0"
 title = "STAC Catalog Builder"
-description = "Build a STAC Catalog from individual fields, a complete JSON object, or an existing object fetched by URL (provided fields override the base). Preview the JSON or export it to a local folder or S3; links are the standard STAC links array with plain hrefs so assemble-stac can stitch trees later."
+description = "Build a STAC Catalog from individual fields, a complete JSON object, or an existing object fetched by URL (provided fields override the base). Preview the JSON or export it to a local folder or S3; links are the standard STAC links array with plain hrefs so the create-catalog-tree feature (POST /v1/stac/catalogs/tree) can stitch trees later."
 depends_on = []
 
 [package]
@@ -16,7 +16,7 @@ router = "ept.features.stac_build_catalog.routes:router"
 
 [[api.routes]]
 method = "POST"
-path = "/v1/stac/build/catalog"
+path = "/v1/stac/objects/catalog"
 summary = "Build a STAC Catalog"
 request_model = "ept.features.stac_build_catalog.models:BuildCatalogRequest"
 response_model = "ept.features.stac_build_catalog.models:BuildCatalogResponse"

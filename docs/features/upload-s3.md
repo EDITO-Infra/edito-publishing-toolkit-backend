@@ -5,7 +5,7 @@ Upload a remote HTTP(S) resource, or a file or directory on the EPT service file
 ## Endpoint
 
 ```text
-POST /v1/storage/s3/upload
+POST /v1/storage/s3/uploads
 ```
 
 Authentication: `Authorization: Bearer <access_token>`.
@@ -16,7 +16,7 @@ Remote file (standard — no staging needed), into your personal bucket (bucket 
 
 ```bash
 curl --fail-with-body \
-  -X POST "${EPT_API_URL}/v1/storage/s3/upload" \
+  -X POST "${EPT_API_URL}/v1/storage/s3/uploads" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -33,7 +33,7 @@ Local file already on the EPT machine, into an explicit bucket for 'projectid':
 
 ```bash
 curl --fail-with-body \
-  -X POST "${EPT_API_URL}/v1/storage/s3/upload" \
+  -X POST "${EPT_API_URL}/v1/storage/s3/uploads" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{

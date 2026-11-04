@@ -198,6 +198,14 @@ VIEW_RESPONSE_MODELS = {
 }
 
 
+class PublishingServiceJobListResponse(BaseModel):
+    """Upstream ``GET /jobs`` wrapper for the caller's job summaries."""
+
+    model_config = ConfigDict(extra="allow")
+
+    jobs: list[PublishingServiceJobSummary]
+
+
 async def get_job(
     http_client: httpx.AsyncClient,
     job_id: str,
@@ -249,6 +257,51 @@ async def get_job(
         )
     try:
         return VIEW_RESPONSE_MODELS[view].model_validate(payload)
+    except ValidationError as exc:
+        # A success body without the documented shape has no upstream error status.
+        raise publishing_rejected_error(502, "Publication backend returned an invalid response.") from exc
+
+
+async def get_jobs(
+    http_client: httpx.AsyncClient,
+    *,
+    access_token: str,
+) -> PublishingServiceJobListResponse:
+    """List the jobs scoped to the username carried by the EDITO access token."""
+    url = f"{resolve_publishing_api_url()}/jobs"
+    headers = {
+        "Accept": "application/json",
+        "Authorization": f"Bearer {access_token}",
+    }
+    logger.info(
+        "Submitting publishing request method=GET url=%s access_token=%s",
+        url,
+        token_diagnostic(access_token),
+    )
+    try:
+        response = await http_client.request("GET", url, headers=headers)
+    except httpx.RequestError as exc:
+        logger.warning("Publishing service unavailable url=%s error=%s", url, exc)
+        raise publishing_unavailable_error() from exc
+
+    try:
+        payload: Any = response.json()
+    except ValueError:
+        payload = response.text
+    if not 200 <= response.status_code < 300:
+        logger.warning(
+            "Publishing service rejected request url=%s status_code=%s response=%s",
+            url,
+            response.status_code,
+            sanitize_payload(payload),
+        )
+        raise publishing_rejected_error(
+            response.status_code,
+            payload,
+            retry_after=response.headers.get("Retry-After"),
+        )
+    try:
+        return PublishingServiceJobListResponse.model_validate(payload)
     except ValidationError as exc:
         # A success body without the documented shape has no upstream error status.
         raise publishing_rejected_error(502, "Publication backend returned an invalid response.") from exc

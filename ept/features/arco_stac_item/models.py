@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -26,7 +26,7 @@ class ArcoStacItemRequest(S3ConnectionParameters):
     """ARCO-ify the data assets of an existing STAC Item.
 
     The Item JSON is read from `source_uri` (local path, `s3://` URI, or
-    HTTP(S) URL) — typically the output of `POST /v1/metadata/iso-to-stac-item`.
+    HTTP(S) URL) — typically the output of `POST /v1/conversions/iso/stac-item`.
     Its assets are inspected and converted:
 
     - **Declared conversions** (`conversions.toml` in the feature) map media
@@ -114,7 +114,19 @@ class ArcoStacItemRequest(S3ConnectionParameters):
             "are asset keys, href file names, or href path fragments "
             "(containing '/'); bare names never match directory segments of a "
             "path. Values are conversion keys declared in conversions.toml "
-            "(e.g. nc-to-zarr, gdb-to-parquet, upload)."
+            "(e.g. nc-to-zarr, gdb-to-parquet, upload). Explicit mappings take "
+            "precedence over the output_format filter."
+        ),
+    )
+    output_format: list[Literal["zarr", "parquet"]] | None = Field(
+        default=None,
+        description=(
+            "Restrict which conversion outputs are produced. Omit or empty = "
+            "auto-dispatch every data asset by its detected format (NetCDF → "
+            "zarr, .gdb/.gdb.zip → parquet). Auto-detected assets whose "
+            "format is not in the list are skipped (no conversion entry in "
+            "the response), not rejected. Explicit `conversions` mappings "
+            "take precedence over this filter; `upload` is never filtered."
         ),
     )
 

@@ -12,7 +12,7 @@ from ept.infrastructure.services.edito_auth import EditoBearerAuthError
 from .models import ArcoStacItemRequest, ArcoStacItemResponse
 from .service import arco_stac_item
 
-router = APIRouter(prefix="/v1/arco", tags=["Make STAC", "arco"])
+router = APIRouter(prefix="/v1/conversions", tags=["Make STAC", "arco"])
 
 _REQUEST_EXAMPLES = {
     "linkDefaultOutput": {
@@ -70,13 +70,13 @@ _REQUEST_EXAMPLES = {
 
 
 @router.post(
-    "/stac-item",
+    "/stac-item/arco",
     response_model=ArcoStacItemResponse,
     summary="ARCO-ify the data assets of a STAC Item",
     operation_id="arcoStacItemV1",
     description=(
         "Reads a STAC Item JSON (local path, s3:// URI, or HTTP(S) URL — "
-        "typically the output of POST /v1/metadata/iso-to-stac-item), converts "
+        "typically the output of POST /v1/conversions/iso/stac-item), converts "
         "its data assets to ARCO formats, adds the converted assets to the "
         "Item, and writes the updated Item JSON to "
         "`s3://<bucket>/<item_target>/<item_id>.json`, or in place for S3 "

@@ -1,0 +1,26 @@
+[feature]
+key = "stac.catalog_tree"
+release = "1.1.0"
+title = "STAC Catalog Tree Builder"
+description = "Create one full STAC Catalog tree from collections and/or catalogs: pass collection JSONs and/or collection links (direct children), catalog JSONs and/or catalog links (their collection children are combined in — same-id collections are combined once), or a source prefix of self-contained collection trees. EPT derives the catalog metadata (unique flat id, keywords unioned, providers merged), fetches item files via item links, rewrites every root/parent/child/item/collection link relative to the new tree, and schema-validates each object. Omit the export target to preview the catalog JSON; set target (an S3 prefix in your personal or a project bucket) or local_output to export the complete, publishable tree with a per-object validation report."
+depends_on = []
+
+[package]
+requires = ["fastapi", "httpx", "pystac", "pydantic-settings", "fsspec", "s3fs", "stac-valid"]
+
+[entrypoints]
+python = ["ept.features.stac_catalog_tree.service:create_catalog_tree"]
+
+[api]
+router = "ept.features.stac_catalog_tree.routes:router"
+
+[[api.routes]]
+method = "POST"
+path = "/v1/stac/catalogs/tree"
+summary = "Create a catalog tree from collections and catalogs"
+request_model = "ept.features.stac_catalog_tree.models:CreateCatalogTreeRequest"
+response_model = "ept.features.stac_catalog_tree.models:CreateCatalogTreeResponse"
+
+[tests]
+unit = "tests/features/stac_catalog_tree/test_catalog_tree.py"
+integration = "tests/features/stac_catalog_tree/test_catalog_tree_api.py"

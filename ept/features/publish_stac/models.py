@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
 
 class PublishStacRequest(BaseModel):
-    """Body accepted by ``POST /v1/edito/stac/publish``.
+    """Body accepted by ``POST /v1/edito/stac/jobs/publication``.
 
     EPT owns this small public contract. The feature adapter adds the
     infrastructure catalog root and applies publication defaults.

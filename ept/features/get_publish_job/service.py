@@ -9,13 +9,15 @@ import httpx
 
 from ept.features.get_publish_job.transport import (
     PublishingServiceJobDetailResponse,
+    PublishingServiceJobListResponse,
     PublishingServiceJobRawResponse,
     PublishingServiceJobSummary,
     get_job,
+    get_jobs,
     parse_publishing_next_cursor,
 )
 
-from .models import GetPublishJobResponse, JobView, PublishJobSummary
+from .models import GetPublishJobResponse, JobView, PublishJobListResponse, PublishJobSummary
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +72,22 @@ async def get_publish_job(
     return response
 
 
+async def list_publish_jobs(
+    *,
+    limit: int,
+    access_token: str,
+    http_client: httpx.AsyncClient,
+) -> PublishJobListResponse:
+    """Return up to ``limit`` of the bearer token's EDITO user's publishing-service jobs."""
+    logger.info("Starting list_publish_jobs limit=%s", limit)
+    upstream = await get_jobs(http_client, access_token=access_token)
+    response = PublishJobListResponse(
+        jobs=[_map_job_summary(summary) for summary in upstream.jobs[:limit]]
+    )
+    logger.info("Completed list_publish_jobs count=%s limit=%s", len(response.jobs), limit)
+    return response
+
+
 def _map_job_summary(upstream: PublishingServiceJobSummary) -> PublishJobSummary:
     """Map the upstream transport model to the stable public summary."""
     summary = {
@@ -97,4 +115,4 @@ def _next_page_link(
         return None
     cursor = parse_publishing_next_cursor(upstream_next)
     query = urlencode({"view": view, "limit": limit, "cursor": cursor})
-    return f"/v1/edito/publish/jobs/{quote(job_id, safe='')}?{query}"
+    return f"/v1/edito/stac/jobs/{quote(job_id, safe='')}?{query}"

@@ -13,7 +13,7 @@ from .models import BuildCollectionRequest, BuildCollectionResponse
 from .service import build_collection
 
 
-router = APIRouter(prefix="/v1/stac/build", tags=["Make STAC", "build", "collection"])
+router = APIRouter(prefix="/v1/stac/objects", tags=["Make STAC", "build", "collection"])
 
 DEFAULT_EDITO_STAC_API_URL = "https://api.dive.edito.eu/data"
 

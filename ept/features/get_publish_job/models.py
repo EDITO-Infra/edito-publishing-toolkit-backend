@@ -37,10 +37,13 @@ DEMO_DETAIL_LOGS = {
     "limit": 100,
     "page_message": "Returned the first page of job events.",
     "next": (
-        f"/v1/edito/publish/jobs/{DEMO_JOB_ID}"
+        f"/v1/edito/stac/jobs/{DEMO_JOB_ID}"
         "?view=detail&limit=100&cursor=1071"
     ),
 }
+
+
+DEMO_JOB_LIST = {"jobs": [DEMO_JOB_SUMMARY]}
 
 
 class GetPublishJobQuery(BaseModel):
@@ -91,6 +94,32 @@ class PublishJobSummary(BaseModel):
         description="Time job execution finished.",
     )
     message: str = Field(min_length=1, description="Publisher-provided description of the current job state.")
+
+
+class ListPublishJobsQuery(BaseModel):
+    """User-facing options for listing the caller's jobs."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
+
+    limit: int = Field(
+        default=100,
+        ge=1,
+        le=1000,
+        description="Maximum number of jobs to return, newest first.",
+    )
+
+
+class PublishJobListResponse(BaseModel):
+    """Publishing-service jobs visible to the caller, newest first."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
+
+    jobs: list[PublishJobSummary] = Field(
+        description=(
+            "Publication, removal jobs submitted by "
+            "the requesting EDITO user, ordered from newest to oldest."
+        ),
+    )
 
 
 class GetPublishJobResponse(PublishJobSummary):

@@ -1,35 +1,37 @@
 # List S3 buckets
 
-List the S3 buckets the caller can see on EDITO's S3-compatible object storage, plus the personal bucket derived from the bearer token. Intended to run right after login so clients can offer the user's buckets as input, e.g. to prefill the `bucket` field of [Upload to S3](upload-s3.md).
+List the S3 buckets the caller can see on EDITO's S3-compatible object storage, plus the personal bucket derived from the bearer token.
+
+Password login ([POST /v1/auth](../auth.md)) registers your S3 session with the EPT instance, so after one login this endpoint needs only the bearer token — no `X-EDITO-S3-*` headers. Use it to discover your buckets before prefilling the `bucket` field of [Upload to S3](upload-s3.md).
 
 ## Endpoint
 
 ```text
-POST /v1/storage/s3/buckets
+GET /v1/storage/s3/buckets
 ```
 
 Authentication: `Authorization: Bearer <access_token>`.
 
 ## Usage
 
+After a password login, one call with the bearer token is enough:
+
 ```bash
 curl --fail-with-body \
-  -X POST "${EPT_API_URL}/v1/storage/s3/buckets" \
+  -X GET "${EPT_API_URL}/v1/storage/s3/buckets" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "endpoint_url": "https://minio.dive.edito.eu",
-    "access_key_id": "<s3_credentials.access_key_id from /v1/auth>",
-    "secret_access_key": "<s3_credentials.secret_access_key from /v1/auth>",
-    "session_token": "<s3_credentials.session_token from /v1/auth>"
-  }'
+  -H "X-EDITO-S3-Endpoint-Url: https://minio.dive.edito.eu" \
+  -H "X-EDITO-S3-Access-Key-Id: <s3_credentials.access_key_id from /v1/auth>" \
+  -H "X-EDITO-S3-Secret-Access-Key: <s3_credentials.secret_access_key from /v1/auth>" \
+  -H "X-EDITO-S3-Session-Token: <s3_credentials.session_token from /v1/auth>"
 ```
 
 ## Request
 
-| Field | Meaning |
-| --- | --- |
-| `endpoint_url`, `access_key_id`, `secret_access_key`, `session_token` | S3 connection parameters from the `s3_credentials` object returned by [`POST /v1/auth`](../auth.md#response). Credentials are request-scoped: they do not inherit an ambient AWS profile and are not installed into the EPT process environment. |
+The S3 credential headers are optional. Supply either all mandatory ones or none:
+
+- **Omitted** (recommended): EPT resolves the S3 session registered by your last password login. Returns a `409` problem (`s3-session-missing`) when none is registered — for example after a refresh-token grant or an EPT restart; log in again via the password grant to fix it.
+- **Supplied**: the `X-EDITO-S3-*` headers override the registered session — `X-EDITO-S3-Endpoint-Url`, `X-EDITO-S3-Access-Key-Id`, `X-EDITO-S3-Secret-Access-Key`, and `X-EDITO-S3-Session-Token` from the `s3_credentials` object returned by [`POST /v1/auth`](../auth.md#response); the session-token header is optional (only needed for STS-issued temporary credentials). Credentials are request-scoped: they do not inherit an ambient AWS profile and are not installed into the EPT process environment.
 
 ## Response
 

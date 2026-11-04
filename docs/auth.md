@@ -63,6 +63,14 @@ The `s3_credentials` object is a temporary 24-hour session for EDITO's S3 object
 
 Pass these fields as connection parameters in requests that touch S3, such as [Upload to S3](features/upload-s3.md); see [S3 storage](s3.md) for details. They are request-scoped — they never become ambient credentials of the EPT process.
 
+Password login also registers the S3 session inside the EPT instance and returns your personal bucket with no storage call at all:
+
+| Field | Meaning |
+| --- | --- |
+| `s3_default_bucket` | Your personal EDITO bucket `oidc-<username>`, the bucket used when `bucket` is omitted from storage requests; null on refresh grants |
+
+Because the session is registered at login, [List S3 buckets](features/list-s3-buckets.md) needs only the bearer token afterwards — no header copying. It is null when the token carries no username claim.
+
 The current implementation forwards the credentials to the configured EDITO Keycloak token endpoint and does not persist them.
 
 ## Instance binding
@@ -93,6 +101,7 @@ with httpx.Client(base_url=base_url, timeout=30.0) as client:
     access_token = tokens["access_token"]
     refresh_token = tokens["refresh_token"]
     s3_credentials = tokens["s3_credentials"]  # null on refresh-token grants
+    default_bucket = tokens["s3_default_bucket"]
 
 headers = {"Authorization": f"Bearer {access_token}"}
 ```

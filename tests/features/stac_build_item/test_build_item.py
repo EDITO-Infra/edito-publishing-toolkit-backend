@@ -308,3 +308,45 @@ def test_explicit_bucket_overrides_default_bucket(monkeypatch):
 def test_s3_export_without_any_bucket_raises_value_error():
     with pytest.raises(ValueError, match="bucket is required"):
         _run(_request(bbox=[0, 0, 1, 1], datetime="2025-01-01T00:00:00Z", target="catalog-1"))
+
+# ── PUT (replace) ────────────────────────────────────────────────────────────
+
+
+@unit
+def test_put_route_requires_a_base_object():
+    from fastapi.testclient import TestClient
+
+    from ept.api.main import app
+
+    with TestClient(app) as client:
+        response = client.put("/v1/stac/objects/item", json={"id": "x", "title": "new"})
+    assert response.status_code == 400
+    assert "PUT replaces an existing Item" in response.json()["detail"]
+
+
+@unit
+def test_put_overlay_overrides_base_fields_and_keeps_the_rest(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from ept.api.main import app
+
+    base = {
+        "type": "Feature",
+        "stac_version": "1.0.0",
+        "id": "item-1",
+        "geometry": None,
+        "properties": {"datetime": "2025-01-15T10:30:00Z", "platform": "sentinel-3a"},
+        "assets": {},
+        "links": [],
+    }
+    with TestClient(app) as client:
+        response = client.put(
+            "/v1/stac/objects/item",
+            json={"stac_json": base, "title": "Updated", "local_output": str(tmp_path / "item")},
+        )
+    assert response.status_code == 200
+    payload = response.json()
+    obj = json.loads((tmp_path / "item" / "item.json").read_text(encoding="utf-8"))
+    assert obj["properties"]["title"] == "Updated"
+    assert obj["properties"]["platform"] == "sentinel-3a"  # base field survives
+    assert obj["properties"]["datetime"] == "2025-01-15T10:30:00Z"

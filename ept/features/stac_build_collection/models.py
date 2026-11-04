@@ -90,8 +90,8 @@ class BuildCollectionRequest(BaseModel):
     )
     providers: list[dict] = Field(
         default_factory=list,
-        description="Providers: `[{\"name\": ..., \"roles\": [...], \"url\": ...}]`.",
-        **_example([{"name": "VLIZ", "roles": ["producer"], "url": "https://www.vliz.be"}]),
+        description="Providers: `[{\"name\": ...}]` — only `name` is required; `roles` and `url` are optional.",
+        **_example([{"name": "VLIZ"}]),
     )
 
     # ── links (standard STAC links; hrefs may point at objects that do not exist yet) ──

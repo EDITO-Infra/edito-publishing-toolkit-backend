@@ -255,11 +255,11 @@ def test_stac_find_routes_require_auth():
 
     with TestClient(app) as client:
         for path in (
-            "/v1/stac/find/items",
-            "/v1/stac/find/collections",
-            "/v1/stac/find/catalogs",
-            "/v1/stac/find/assets?q=x",
-            "/v1/stac/find/properties?match=k=v",
+            "/v1/stac/items",
+            "/v1/stac/collections",
+            "/v1/stac/catalogs",
+            "/v1/stac/items/assets?q=x",
+            "/v1/stac/items/properties?match=k=v",
         ):
             response = client.get(path)
             assert response.status_code in (401, 403, 422), (path, response.status_code)

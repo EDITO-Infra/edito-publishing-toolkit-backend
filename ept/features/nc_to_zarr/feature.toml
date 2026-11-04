@@ -17,7 +17,7 @@ router = "ept.features.nc_to_zarr.routes:router"
 
 [[api.routes]]
 method = "POST"
-path = "/v1/transform/nc-to-zarr"
+path = "/v1/conversions/netcdf/zarr"
 summary = "Transform NetCDF to Zarr"
 request_model = "ept.features.nc_to_zarr.models:NetcdfToZarrRequest"
 response_model = "ept.features.nc_to_zarr.models:NetcdfToZarrResponse"

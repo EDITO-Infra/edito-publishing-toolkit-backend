@@ -521,7 +521,7 @@ def test_route_returns_422_on_version_mismatch(
 
     with TestClient(app) as client:
         response = client.post(
-            "/v1/stac/validate",
+            "/v1/stac/validations",
             json={"stac_url": "https://example.com/catalog.json"},
         )
 
@@ -624,7 +624,7 @@ def test_route_rejects_invalid_token() -> None:
     try:
         with TestClient(app) as client:
             response = client.post(
-                "/v1/stac/validate",
+                "/v1/stac/validations",
                 json={"stac_url": "https://example.com/catalog.json"},
             )
     finally:
@@ -657,7 +657,7 @@ def test_route_returns_validation_report(
 
     with TestClient(app) as client:
         response = client.post(
-            "/v1/stac/validate",
+            "/v1/stac/validations",
             json={"stac_url": "https://example.com/catalog.json", "validate_children": True},
         )
 
@@ -675,7 +675,7 @@ def test_route_rejects_non_http_urls() -> None:
     """Pydantic HttpUrl validation should catch non-HTTP schemes."""
     with TestClient(app) as client:
         response = client.post(
-            "/v1/stac/validate",
+            "/v1/stac/validations",
             json={"stac_url": "/etc/passwd", "validate_children": True},
         )
     assert response.status_code == 422
@@ -706,7 +706,7 @@ def test_route_handles_fetch_errors(
 
     with TestClient(app) as client:
         response = client.post(
-            "/v1/stac/validate",
+            "/v1/stac/validations",
             json={"stac_url": "https://example.com/broken.json", "validate_children": True},
         )
 
@@ -743,7 +743,7 @@ def test_route_maps_upstream_status(
 
     with TestClient(app) as client:
         result = client.post(
-            "/v1/stac/validate",
+            "/v1/stac/validations",
             json={"stac_url": "https://example.com/missing.json"},
         )
 

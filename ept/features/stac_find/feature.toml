@@ -16,37 +16,37 @@ router = "ept.features.stac_find.routes:router"
 
 [[api.routes]]
 method = "GET"
-path = "/v1/stac/find/items"
+path = "/v1/stac/items"
 summary = "Find items (STAC Item Search)"
 response_model = "ept.features.stac_find.models:FindItemsResponse"
 
 [[api.routes]]
 method = "GET"
-path = "/v1/stac/find/items/scientific"
+path = "/v1/stac/items/scientific"
 summary = "Find items by scientific metadata (DOI, citation)"
 response_model = "ept.features.stac_find.models:FindItemsResponse"
 
 [[api.routes]]
 method = "GET"
-path = "/v1/stac/find/collections"
+path = "/v1/stac/collections"
 summary = "Find collections"
 response_model = "ept.features.stac_find.models:FindCollectionsResponse"
 
 [[api.routes]]
 method = "GET"
-path = "/v1/stac/find/catalogs"
+path = "/v1/stac/catalogs"
 summary = "Find catalogs in the STAC catalog tree"
 response_model = "ept.features.stac_find.models:FindCatalogsResponse"
 
 [[api.routes]]
 method = "GET"
-path = "/v1/stac/find/assets"
+path = "/v1/stac/items/assets"
 summary = "Find items by asset"
 response_model = "ept.features.stac_find.models:FindItemsResponse"
 
 [[api.routes]]
 method = "GET"
-path = "/v1/stac/find/properties"
+path = "/v1/stac/items/properties"
 summary = "Find items by properties"
 response_model = "ept.features.stac_find.models:FindPropertiesResponse"
 
