@@ -183,6 +183,7 @@ merging existing trees is one call. (`POST /v1/stac/trees`, the
 old loose-file assembler, was removed in this release.)
 
 Before publishing, open the tree in the
+[STAC browser](https://browser.moregeo.it/), the
 [NetCDF/Zarr viewer](https://datalab.dive.edito.eu/launcher/service-playground/netcdf-zarr-viewer)
 and
 [Parquet explorer](https://datalab.dive.edito.eu/launcher/service-playground/parquet-explorer)

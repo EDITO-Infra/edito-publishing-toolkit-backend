@@ -106,7 +106,10 @@ keywords are derived, and the export writes them unchanged.
 The response's `collection_uri` is the public URL of `collection.json` —
 open it in a browser and the item links are there: the folder is complete
 on its own. Check what landed with *STAC Fetch*: the `id` is yours,
-`extent` covers both Items, `license` matches.
+`extent` covers both Items, `license` matches. Or paste the
+`collection_uri` into the
+[STAC browser](https://browser.moregeo.it/) and browse the Collection
+with its Items from there.
 
 ```bash
 MY_ID=$PROJECTID-habitats-and-heritage

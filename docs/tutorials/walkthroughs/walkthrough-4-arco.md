@@ -127,6 +127,9 @@ Notes:
 - Each conversion adds an asset to the Item — `zarr`
   (`application/vnd+zarr`) or `parquet` (`application/vnd.apache.parquet`);
   original assets are kept.
+- Check the GeoParquet results in the
+  [Parquet Explorer](https://datalab.dive.edito.eu/launcher/service-playground/parquet-explorer)
+  — point it at the `parquet` asset urls under `<workspace>/data/`.
 - Auto-conversion: NetCDF assets → `nc-to-zarr`; `.gdb`/`.gdb.zip` →
   `gdb-to-parquet`; `.shp` → `shp-to-parquet`. A plain `.zip` is never
   auto-converted — map it explicitly (`gdb-to-parquet` needs exactly one

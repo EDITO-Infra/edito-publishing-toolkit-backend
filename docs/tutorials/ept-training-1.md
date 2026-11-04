@@ -24,6 +24,10 @@ You work in a **shared project bucket** (`project-ept-training1`).
    the project quota):
    [edito-publishing-toolkit-service](https://datalab.dive.edito.eu/launcher/service-playground/edito-publishing-toolkit-service)
    · 🎬 [video](videos/launch-ept-edito-service.mp4)
+- Optional — also launch the
+   [Parquet Explorer](https://datalab.dive.edito.eu/launcher/service-playground/parquet-explorer)
+   from your personal space. Handy later, when the walkthroughs produce
+   GeoParquet, to inspect the conversions.
 - Pick how you work — both use the same API:
    - **UI only** — open your service URL and sign in with your EDITO
      account. Follow the walkthroughs' UI blocks; every step is a form
@@ -53,7 +57,7 @@ You work in a **shared project bucket** (`project-ept-training1`).
 | 3 | [Items from metadata](walkthroughs/walkthrough-3-metadata-items.md) | ISO records → `<handle>-mangrove`, `<handle>-heritage-shipwrecks` items |
 | 4 | [ARCO items](walkthroughs/walkthrough-4-arco.md) | every Item carries cloud-optimized assets |
 | 5 | [Collections](walkthroughs/walkthrough-5-collections.md) — workspace folder **public** first | two validated Collection folders |
-| 6 | [Catalog](walkthroughs/walkthrough-6-catalog.md) | schema-valid `<handle>-output/stac-final/` — open it in the STAC browser |
+| 6 | [Catalog](walkthroughs/walkthrough-6-catalog.md) | schema-valid `<handle>-output/stac-final/` — open it in the [STAC browser](https://browser.moregeo.it/) |
 
 🎬 Every step's walkthrough page carries a screencast of that step — a
 stand-in when a live step can't run, skippable otherwise. The

@@ -8,6 +8,24 @@ in the env file below.
 Everything in the walkthroughs runs *in the service*; your machine only
 sends HTTP requests.
 
+## Parquet explorer (optional)
+
+Also launch the
+[Parquet Explorer](https://datalab.dive.edito.eu/launcher/service-playground/parquet-explorer)
+from your personal space now — once the ARCO conversions in
+[Walkthrough 4](walkthroughs/walkthrough-4-arco.md) produce GeoParquet,
+it's a handy way to inspect the results. Nothing to configure; skip it
+if you don't want the extra service running.
+
+## STAC browser (optional)
+
+To eyeball your STAC as it takes shape, open the
+[STAC browser](https://browser.moregeo.it/) — give it the URL of any
+`catalog.json`, Collection or Item JSON you've written to S3 (public
+urls only; make the workspace folder public as in
+[Walkthrough 5](walkthroughs/walkthrough-5-collections.md) first) and
+browse the tree from there.
+
 ## Log in
 
 One env file sets everything — credentials, `EPT_URL`, and optionally

@@ -76,4 +76,7 @@ Notes:
   Collection (EDITO rejects Items that sit directly under a Catalog).
 - The record needs a geographic bbox and usable temporal information.
 
+As in the previous walkthrough, paste the Items' `target_uri`s into the
+[STAC browser](https://browser.moregeo.it/) to see them as a client would.
+
 **Next:** [Walkthrough 4 — ARCO items](walkthrough-4-arco.md)

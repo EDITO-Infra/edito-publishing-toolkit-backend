@@ -26,8 +26,20 @@ docker run -d --name ept-api --network ept-net -p 8000:8000 \
 ```
 
 API on `:8000`, docs at `/docs`. No environment variables needed —
-defaults are baked in. More (frontend, compose, logs, state):
-[Docker usage](docker-usage.md).
+defaults are baked in.
+
+Optional UI — run the prebuilt frontend against it (it proxies `/api` to
+the backend):
+
+```bash
+docker run -d --name ept-frontend --network ept-net -p 3000:8080 \
+  -e EPT_API_UPSTREAM=http://ept-api:8000 \
+  ghcr.io/edito-infra/edito-publishing-toolkit-frontend:latest
+```
+
+UI at <http://localhost:3000>; sign in with your EDITO account. Pin a
+version tag instead of `latest` to match the backend. More (compose,
+logs, state): [Docker usage](docker-usage.md).
 
 ## Local source code
 
@@ -45,3 +57,14 @@ uv run uvicorn ept.api.main:app --host 0.0.0.0 --port 8000 --reload
 API on `:8000`, docs at `/docs`. Next: [usage](usage.md). The Makefile
 wraps these (`make install`, `make test`, `make api-start`);
 `api-stop`/`api-restart` are Unix-only.
+
+Optionally add the UI with the prebuilt frontend image:
+
+```bash
+docker run -d --name ept-frontend -p 3000:8080 \
+  -e EPT_API_UPSTREAM=http://host.docker.internal:8000 \
+  --add-host=host.docker.internal:host-gateway \
+  ghcr.io/edito-infra/edito-publishing-toolkit-frontend:latest
+```
+
+UI at <http://localhost:3000> — no local Node install needed.

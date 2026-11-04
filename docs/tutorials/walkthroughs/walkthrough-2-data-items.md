@@ -109,4 +109,8 @@ file at the exact path the following walkthroughs read:
 ✅ **Check:** `items/din/<projectid>-din.json` exists, its `id` is
 `<projectid>-din`, and the NetCDF asset is unchanged.
 
+Check the item as you go: paste its `target_uri` into the
+[STAC browser](https://browser.moregeo.it/) (public urls only) and see
+it as a client would.
+
 **Next:** [Walkthrough 3 — Items from metadata](walkthrough-3-metadata-items.md)
