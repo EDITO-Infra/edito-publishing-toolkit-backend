@@ -157,6 +157,40 @@ def test_find_catalog_deduplicates_child_hrefs_across_parents():
 
 
 @unit
+def test_find_catalog_skips_unreachable_subtree():
+    api = FakeStacApi(
+        {
+            "/catalogs/projects": {
+                "links": [
+                    {"rel": "child", "href": "https://api.dive.edito.eu/data/catalogs/projects/demo", "title": "Demo project"},
+                    {"rel": "child", "href": "https://api.dive.edito.eu/data/catalogs/projects/broken", "title": "Broken"},
+                    {"rel": "child", "href": "https://api.dive.edito.eu/data/catalogs/projects/other", "title": "Other"},
+                ],
+            },
+            "catalogs/projects/demo": {
+                "links": [
+                    {"rel": "child", "href": "https://api.dive.edito.eu/data/catalogs/projects/demo/nested", "title": "Nested demo"},
+                ],
+            },
+            "catalogs/projects/broken": ConnectionError("upstream reset"),
+            "catalogs/projects/other": {"links": []},
+            "catalogs/projects/demo/nested": {"links": []},
+        }
+    )
+    result = _run(service.find_catalog(api, access_token="t", q="demo"))  # type: ignore[arg-type]
+    assert isinstance(result, FindCatalogsResponse)
+    assert [c["title"] for c in result.catalogs] == ["Demo project", "Nested demo"]
+    assert "catalogs/projects/broken" in api.requested
+
+
+@unit
+def test_find_catalog_root_failure_propagates():
+    api = FakeStacApi({"/catalogs/projects": ConnectionError("upstream reset")})
+    with pytest.raises(ConnectionError):
+        _run(service.find_catalog(api, access_token="t"))  # type: ignore[arg-type]
+
+
+@unit
 def test_find_asset_returns_featurecollection_of_matched_items():
     api = FakeStacApi(
         {
