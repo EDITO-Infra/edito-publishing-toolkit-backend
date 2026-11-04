@@ -1,0 +1,233 @@
+"""Steps 3+4 of the collection tree builder: attach the items and write the tree.
+
+Two export shapes:
+
+- ``export_tree`` — item_links/inline items plus a ``target``: a self-contained
+  collection tree (``collection.json`` plus ``<item-id>/<item-id>.json`` per
+  item) written into a local folder or an ``s3://bucket/prefix``. The tree
+  structure comes from :func:`ept.infrastructure.formats.stac.collection.collection_tree_payloads`;
+  this module only writes the payloads.
+- ``export_into_source_prefix`` — a ``source_prefix``: ``collection.json`` is
+  written inside the prefix and the item files are re-linked in place; nothing
+  is moved or copied.
+
+No FastAPI and no EDITO policy here.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from pathlib import Path, PurePosixPath
+from typing import Any
+
+from ept.infrastructure.formats.stac.collection import (
+    collection_tree_payloads,
+    validate_collection,
+)
+from ept.infrastructure.formats.stac.item import validate_item
+from ept.infrastructure.services.edito_auth import S3ConnectionParameters
+from ept.infrastructure.storage.s3 import (
+    is_s3_uri,
+    resolve_s3_storage_options,
+    s3_url_to_fs,
+)
+
+logger = logging.getLogger(__name__)
+
+_OBJECT_FILENAME = "collection.json"
+
+
+def read_prefix_items(
+    folder: str, s3: S3ConnectionParameters | None
+) -> tuple[list[dict[str, Any]], list[str], list[str]]:
+    """Read the ``*.json`` items under ``folder`` (recursive); non-items warn and are skipped.
+
+    Every kept item is schema-validated. Returns the item dicts, their paths
+    relative to the folder (same order), and the skip warnings.
+    """
+
+    if is_s3_uri(folder):
+        fs, root = s3_url_to_fs(folder, storage_options=resolve_s3_storage_options(s3))
+        root = root.rstrip("/")
+        entries = sorted(
+            str(path) for path in fs.find(root, withdirs=False) if str(path).lower().endswith(".json")
+        )
+        contents = [_read_s3_json(fs, path) for path in entries]
+        rel_names = [PurePosixPath(path).relative_to(root).as_posix() for path in entries]
+    else:
+        base = Path(folder)
+        if not base.is_dir():
+            raise FileNotFoundError(f"source_prefix not found or not a directory: {folder}")
+        entries = sorted(base.rglob("*.json"))
+        contents = [_read_local_json(path) for path in entries]
+        rel_names = [path.relative_to(base).as_posix() for path in entries]
+
+    items: list[dict[str, Any]] = []
+    names: list[str] = []
+    warnings: list[str] = []
+    for rel, data in zip(rel_names, contents, strict=True):
+        if data is None:
+            warnings.append(f"{rel}: skipped unreadable JSON file.")
+            continue
+        if data.get("type") != "Feature":
+            warnings.append(f"{rel}: skipped, not a STAC Item (type != 'Feature').")
+            continue
+        try:
+            validate_item(data)
+        except ValueError as exc:
+            raise ValueError(f"{rel} failed STAC Item validation: {exc}") from exc
+        logger.info("Step 1: read valid item id=%s from %s", data.get("id"), rel)
+        items.append(data)
+        names.append(rel)
+    if not items:
+        raise ValueError(f"No STAC Items found under source_prefix: {folder}")
+    return items, names, warnings
+
+
+def export_tree(
+    collection_dict: dict[str, Any],
+    items: list[dict[str, Any]],
+    folder: str,
+    *,
+    overwrite: bool,
+    s3: S3ConnectionParameters | None,
+    warnings: list[str],
+) -> tuple[dict[str, Any], str, list[str]]:
+    """Save the collection and its items as a self-contained tree into ``folder``.
+
+    Standard layout: ``collection.json`` at the root, each item under
+    ``<item-id>/<item-id>.json`` (ids slugified when unsafe, with a warning).
+    Returns the saved collection JSON and its URI, plus the written item file
+    URIs.
+    """
+
+    for item in items:
+        try:
+            validate_item(item)
+        except ValueError as exc:
+            raise ValueError(f"item '{item.get('id', '<unknown>')}' failed STAC Item validation: {exc}") from exc
+
+    payloads = collection_tree_payloads(collection_dict, items, warnings=warnings)
+    written = _write_files(folder, payloads, overwrite=overwrite, s3=s3, guard_items=True)
+    logger.info("Step 4: saved collection tree to %s", folder)
+
+    collection_uri = written[0]
+    stac_object = json.loads(payloads[0][1])
+    return stac_object, collection_uri, written[1:]
+
+
+def export_into_source_prefix(
+    collection_dict: dict[str, Any],
+    items: list[dict[str, Any]],
+    rel_names: list[str],
+    folder: str,
+    *,
+    overwrite: bool,
+    s3: S3ConnectionParameters | None,
+) -> tuple[dict[str, Any], str, list[str]]:
+    """Write collection.json into the source prefix and re-link the item files in place.
+
+    Items keep their filenames and locations; each gains the collection id and
+    root/parent/collection links pointing at the prefix's collection.json.
+    """
+
+    collection_id = str(collection_dict["id"])
+    for item, rel in zip(items, rel_names, strict=True):
+        parent_href = _relative_collection_href(rel)
+        item["collection"] = collection_id
+        # No 'self' link: the STAC schemas require an absolute IRI for rel='self'.
+        item["links"] = [
+            {"rel": "root", "href": parent_href},
+            {"rel": "parent", "href": parent_href},
+            {"rel": "collection", "href": parent_href},
+        ]
+        validate_item(item)
+    logger.info("Step 3: re-linked %d item file(s) in place", len(items))
+
+    collection_dict["links"] = [
+        {"rel": "root", "href": _OBJECT_FILENAME},
+        *[{"rel": "item", "href": rel} for rel in rel_names],
+    ]
+    validate_collection(collection_dict)
+
+    payloads = [
+        (_OBJECT_FILENAME, json.dumps(collection_dict, indent=2)),
+        *[(rel, json.dumps(item, indent=2)) for rel, item in zip(rel_names, items, strict=True)],
+    ]
+    written = _write_files(folder, payloads, overwrite=overwrite, s3=s3, guard_items=False)
+    logger.info("Step 4: wrote collection.json + %d item file(s) into %s", len(items), folder)
+    return collection_dict, written[0], written[1:]
+
+
+def _relative_collection_href(item_rel: str) -> str:
+    """Path of collection.json as seen from the item's folder."""
+
+    item_dir = PurePosixPath(item_rel).parent
+    depth = len(item_dir.parts)
+    return "/".join([".."] * depth + [_OBJECT_FILENAME]) if depth else _OBJECT_FILENAME
+
+
+def _read_s3_json(fs: Any, path: str) -> dict[str, Any] | None:
+    """Parse one s3:// JSON object; unreadable files are skipped (caller warns)."""
+    try:
+        with fs.open(path, "r") as handle:
+            data = json.loads(handle.read())
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        logger.warning("Skipped unreadable JSON s3 object %s: %s", path, exc)
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _read_local_json(path: Path) -> dict[str, Any] | None:
+    """Parse one local JSON file; unreadable files are skipped (caller warns)."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        logger.warning("Skipped unreadable JSON file %s: %s", path, exc)
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _write_files(
+    folder: str,
+    payloads: list[tuple[str, str]],
+    *,
+    overwrite: bool,
+    s3: S3ConnectionParameters | None,
+    guard_items: bool,
+) -> list[str]:
+    """Write (rel_path, json) pairs into a local folder or s3:// prefix; returns full URIs."""
+
+    if is_s3_uri(folder):
+        fs, root = s3_url_to_fs(folder, storage_options=resolve_s3_storage_options(s3))
+        root = root.rstrip("/")
+        if not overwrite:
+            clashes = [
+                rel
+                for rel, _ in payloads
+                if (rel == _OBJECT_FILENAME or guard_items) and fs.exists(f"{root}/{rel}")
+            ]
+            if clashes:
+                raise FileExistsError(
+                    f"Target already exists: {folder}/{clashes[0]}. Set overwrite=true to replace it."
+                )
+        for rel, payload in payloads:
+            fs.write_text(f"{root}/{rel}", payload)
+        return [f"{folder}/{rel}" for rel, _ in payloads]
+
+    base = Path(folder)
+    base.mkdir(parents=True, exist_ok=True)
+    if not overwrite:
+        clashes = [
+            rel for rel, _ in payloads if (rel == _OBJECT_FILENAME or guard_items) and (base / rel).exists()
+        ]
+        if clashes:
+            raise FileExistsError(
+                f"Target already exists: {base / clashes[0]}. Set overwrite=true to replace it."
+            )
+    for rel, payload in payloads:
+        destination = base / rel
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(payload, encoding="utf-8")
+    return [str(base / rel) for rel, _ in payloads]

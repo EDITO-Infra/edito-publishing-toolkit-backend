@@ -1,11 +1,11 @@
 # Build a STAC Catalog
 
-Build a STAC Catalog from individual fields, from a complete JSON object, or from an existing catalog fetched by URL — provided fields override the base. Preview the JSON, or export it as `catalog.json` to S3 or a local folder, ready for [assemble](assemble-stac.md) to stitch into a tree.
+Build a STAC Catalog from individual fields, from a complete JSON object, or from an existing catalog fetched by URL — provided fields override the base. Preview the JSON, or export it as `catalog.json` to S3 or a local folder, ready for [create catalog tree](create-catalog-tree.md) to stitch into a tree.
 
 ## Endpoint
 
 ```text
-POST /v1/stac/build/catalog
+POST /v1/stac/objects/catalog
 ```
 
 Authentication: `Authorization: Bearer <access_token>`.
@@ -13,7 +13,7 @@ Authentication: `Authorization: Bearer <access_token>`.
 ## Usage
 
 ```bash
-curl -X POST "${EPT_API_URL}/v1/stac/build/catalog" \
+curl -X POST "${EPT_API_URL}/v1/stac/objects/catalog" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -d '{
@@ -112,7 +112,7 @@ Unknown fields are rejected (`extra="forbid"`).
 ## Good to know
 
 - Omit `target` for a pure preview — nothing is written and `status` is `preview`.
-- With S3 export (default), `target` is a prefix inside `bucket`, which defaults to your personal EDITO bucket `oidc-<username>` derived from your bearer token. `catalog.json` is appended automatically — do not include it in `target`.
+- With S3 export (default), `target` is a prefix inside `bucket`, which defaults to your personal EDITO bucket `oidc-<username>` derived from your bearer token. `catalog.json` is appended automatically — a `target` ending in `.json` overrides the file name instead of getting the suffix appended.
 - Exporting to an existing path returns `409` unless `overwrite=true`. Bad input returns `400`; a failed base-object fetch returns `502`.
 - When `source_url` points at the EDITO STAC API, your bearer token is attached to the fetch automatically; for other URLs the fetch is anonymous.
-- Link hrefs are plain and need not exist yet — [assemble](assemble-stac.md) can stitch the tree afterwards. [Validate](validate-stac.md) the tree before [publishing](publish-stac.md).
+- Link hrefs are plain and need not exist yet — [create catalog tree](create-catalog-tree.md) can stitch the tree afterwards. [Validate](validate-stac.md) the tree before [publishing](publish-stac.md).

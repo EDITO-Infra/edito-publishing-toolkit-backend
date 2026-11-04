@@ -16,7 +16,7 @@ router = "ept.features.arco_stac_item.routes:router"
 
 [[api.routes]]
 method = "POST"
-path = "/v1/arco/stac-item"
+path = "/v1/conversions/stac-item/arco"
 summary = "ARCO-ify the data assets of a STAC Item"
 request_model = "ept.features.arco_stac_item.models:ArcoStacItemRequest"
 response_model = "ept.features.arco_stac_item.models:ArcoStacItemResponse"

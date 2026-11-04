@@ -3,7 +3,7 @@
 Runs are EPT-local executions of feature operations, polled and cancelled
 here. Publish/remove *jobs* are a different mechanism: they execute on the
 external EDITO publishing service and are polled via
-``/v1/edito/publish/jobs/{job_id}``.
+``/v1/edito/stac/jobs/{job_id}``.
 """
 
 from __future__ import annotations
@@ -62,7 +62,7 @@ def _not_found() -> HTTPException:
         "return `202` with a `run_id` immediately. Poll `GET /v1/runs/{run_id}` "
         "for status and result; cancel with `DELETE /v1/runs/{run_id}`. "
         "EPT runs are unrelated to publish/remove jobs, which run on the "
-        "external EDITO publishing service (`/v1/edito/publish/jobs`). "
+        "external EDITO publishing service (`/v1/edito/stac/jobs`). "
         "Requires `Authorization: Bearer <access_token>`."
     ),
     responses=problem_responses(),

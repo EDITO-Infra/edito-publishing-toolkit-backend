@@ -100,7 +100,7 @@ def test_remove_stac_translates_request_to_upstream_delete_call(publishing_http_
     request is sent to the correct URL and includes the necessary auth headers and JSON body."""
     response = asyncio.run(
         _post(
-            "/v1/edito/stac/remove",
+            "/v1/edito/stac/jobs/removal",
             {"catalog_id": "projects/demo"},
         )
     )
@@ -124,7 +124,7 @@ def test_remove_stac_translates_request_to_upstream_delete_call(publishing_http_
 def test_remove_stac_openapi_documents_body_auth_and_examples():
     """Swagger must show the JSON body and both auth headers needed to remove."""
     schema = app.openapi()
-    operation = schema["paths"]["/v1/edito/stac/remove"]["post"]
+    operation = schema["paths"]["/v1/edito/stac/jobs/removal"]["post"]
 
     assert operation["security"] == [{"HTTPBearer": []}]
     assert operation["operationId"] == "queueStacRemovalV1"
@@ -155,7 +155,7 @@ def test_remove_stac_openapi_documents_body_auth_and_examples():
 @unit
 def test_remove_stac_validation_problem_uses_json_pointer():
     """Missing request fields should be reported with public JSON Pointers."""
-    response = asyncio.run(_post("/v1/edito/stac/remove", {}))
+    response = asyncio.run(_post("/v1/edito/stac/jobs/removal", {}))
 
     assert response.status_code == 422
     assert response.headers["content-type"] == "application/problem+json"
@@ -164,7 +164,7 @@ def test_remove_stac_validation_problem_uses_json_pointer():
         "title": "Invalid request",
         "status": 422,
         "detail": "The request body is missing required fields.",
-        "instance": "/v1/edito/stac/remove",
+        "instance": "/v1/edito/stac/jobs/removal",
         "reason": "invalid_request",
         "errors": [{"detail": "Field is required.", "pointer": "/catalog_id"}],
     }
@@ -174,7 +174,7 @@ def test_remove_stac_validation_problem_uses_json_pointer():
 def test_remove_stac_rejects_non_project_catalog_id(publishing_http_client):
     """Removal outside the projects namespace must not reach upstream."""
     response = asyncio.run(
-        _post("/v1/edito/stac/remove", {"catalog_id": "users/alice"})
+        _post("/v1/edito/stac/jobs/removal", {"catalog_id": "users/alice"})
     )
 
     assert response.status_code == 422
@@ -203,7 +203,7 @@ def test_remove_stac_rejects_path_traversal_in_catalog_id(
 ):
     """Removal is destructive: nothing that could escape the catalog path may reach upstream."""
     response = asyncio.run(
-        _post("/v1/edito/stac/remove", {"catalog_id": catalog_id})
+        _post("/v1/edito/stac/jobs/removal", {"catalog_id": catalog_id})
     )
 
     assert response.status_code == 422
@@ -216,7 +216,7 @@ def test_remove_stac_rejects_unsupported_request_fields():
     """The public remove request body rejects undocumented caller fields."""
     response = asyncio.run(
         _post(
-            "/v1/edito/stac/remove",
+            "/v1/edito/stac/jobs/removal",
             {
                 "catalog_id": "projects/demo-catalog",
                 "unexpected": True,
@@ -234,7 +234,7 @@ def test_remove_stac_rejects_missing_refresh_token_header():
     """Removal job submission needs bearer and refresh-token authentication."""
     response = asyncio.run(
         _post_with_headers(
-            "/v1/edito/stac/remove",
+            "/v1/edito/stac/jobs/removal",
             {"catalog_id": "projects/demo"},
             headers={"Authorization": "Bearer valid-token"},
         )
@@ -247,7 +247,7 @@ def test_remove_stac_rejects_missing_refresh_token_header():
         "title": "Refresh token required",
         "status": 401,
         "detail": "Provide X-EDITO-Refresh-Token when submitting a publication or removal job.",
-        "instance": "/v1/edito/stac/remove",
+        "instance": "/v1/edito/stac/jobs/removal",
         "reason": "missing_refresh_token",
     }
 
@@ -259,7 +259,7 @@ def test_remove_stac_maps_upstream_rejection(publishing_http_client):
         (401, {"detail": "bearer token not valid", "access_token": "leaked"}, {})
     ]
 
-    response = asyncio.run(_post("/v1/edito/stac/remove", {"catalog_id": "projects/demo"}))
+    response = asyncio.run(_post("/v1/edito/stac/jobs/removal", {"catalog_id": "projects/demo"}))
 
     assert response.status_code == 401
     assert response.headers["content-type"] == "application/problem+json"
@@ -268,7 +268,7 @@ def test_remove_stac_maps_upstream_rejection(publishing_http_client):
         "title": "Publication request rejected",
         "status": 401,
         "detail": "The publication request could not be accepted.",
-        "instance": "/v1/edito/stac/remove",
+        "instance": "/v1/edito/stac/jobs/removal",
         "reason": "publication_request_rejected",
         "upstream_response": {
             "detail": "bearer token not valid",
@@ -283,7 +283,7 @@ def test_remove_stac_maps_upstream_unavailability(publishing_http_client):
     request = httpx.Request("POST", "https://publishing.test/stac/delete")
     publishing_http_client.error = httpx.ConnectError("no route", request=request)
 
-    response = asyncio.run(_post("/v1/edito/stac/remove", {"catalog_id": "projects/demo"}))
+    response = asyncio.run(_post("/v1/edito/stac/jobs/removal", {"catalog_id": "projects/demo"}))
 
     assert response.status_code == 502
     assert response.headers["content-type"] == "application/problem+json"
@@ -293,7 +293,7 @@ def test_remove_stac_maps_upstream_unavailability(publishing_http_client):
         "status": 502,
         "detail": "EPT could not complete the publication request because a required service is unavailable.",
         "reason": "publication_backend_unavailable",
-        "instance": "/v1/edito/stac/remove",
+        "instance": "/v1/edito/stac/jobs/removal",
     }
 
 
@@ -334,7 +334,7 @@ def test_remove_stac_queues_live_removal_job(
     """Queue a real removal job when integration tests are selected."""
     response = asyncio.run(
         _submit_live(
-            "/v1/edito/stac/remove",
+            "/v1/edito/stac/jobs/removal",
             {
                 "catalog_id": live_catalog_id
             },

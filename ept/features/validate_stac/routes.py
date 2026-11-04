@@ -20,7 +20,7 @@ REQUEST_EXAMPLE = {"stac_url": "https://minio.dive.edito.eu/oidc-myusername/"
 
 
 @router.post(
-    "/validate",
+    "/validations",
     response_model=ValidateStacResponse,
     summary="Validate a remote STAC object",
     description="Validates a STAC Catalog, Collection, or Item accessible via URL. "

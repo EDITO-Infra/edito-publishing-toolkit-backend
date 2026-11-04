@@ -70,6 +70,9 @@ def build_item(
     if instant is not None:
         properties["datetime"] = instant.isoformat()
     else:
+        # STAC 1.1 requires the `datetime` key (null for intervals) — same
+        # serialization the ISO19139 converter emits for date ranges.
+        properties["datetime"] = None
         properties["start_datetime"] = start_datetime.isoformat()
         properties["end_datetime"] = end_datetime.isoformat()
 

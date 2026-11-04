@@ -31,15 +31,13 @@ See [Authentication](auth.md) for token exchange and header requirements.
 
 ## Feature routes
 
-Everything beyond the service routes above is provided by a feature. Each feature guide documents its own endpoints, authentication, and usage — for example, [Validate STAC](features/validate-stac.md) exposes `POST /v1/stac/validate` to check a remote STAC catalog, collection, or item before publishing.
+Everything beyond the service routes above is provided by a feature. Each feature guide documents its own endpoints, authentication, and usage — for example, [Validate STAC](features/validate-stac.md) exposes `POST /v1/stac/validations` to check a remote STAC catalog, collection, or item before publishing.
 
 Browse all available features in the [feature index](features/index.md).
 
 ## Versioning
 
-EPT v1.1.0 exposes its supported public contract under `/v1`. The unversioned `/` route exists only to redirect users to the API index.
-
-Backward-compatible additions may be made within `/v1`. Breaking changes require a new major API namespace.
+Supported public contract under `/v1`. The unversioned `/` route exists only to redirect users to the API index.
 
 ## Errors
 

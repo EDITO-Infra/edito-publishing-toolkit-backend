@@ -1,40 +1,70 @@
 # Installing EPT
 
-EPT works on Linux, macOS, and Windows.
+Three ways to run EPT — same API either way.
 
-## Prerequisites
+1. EDITO service — zero install, an EDITO account is all you need.
+2. Docker — prebuilt images, no clone.
+3. Clone — `uv sync` and run.
 
-- [`uv`](https://docs.astral.sh/uv/) — the simplest way to run EPT; it installs the Python version required by [`pyproject.toml`](https://docs.astral.sh/uv/concepts/python-versions/) automatically
-- [Docker](https://docs.docker.com/get-docker/) — only if you want to run EPT in a container
+## EDITO service
 
-Other tooling (a Python ≥3.13 interpreter plus pip, for example) works too; the commands below just assume `uv`.
+Launch the
+[service playground](https://datalab.dive.edito.eu/launcher/service-playground/edito-publishing-toolkit-service)
+from your personal space. Sign in in the UI, or point scripts at your
+service URL. Nothing below applies.
 
-## Install
+## Docker
 
-From the repository root, sync the project dependencies into a local virtual environment:
+Docker is the only prerequisite. Prebuilt API and frontend images are
+on GHCR — no clone needed:
 
 ```bash
+docker network create ept-net
+docker run -d --name ept-api --network ept-net -p 8000:8000 \
+  -v ept_workspace:/app/workspace -v ept_data:/app/data \
+  ghcr.io/edito-infra/edito-publishing-toolkit-backend:latest
+```
+
+API on `:8000`, docs at `/docs`. No environment variables needed —
+defaults are baked in.
+
+Optional UI — run the prebuilt frontend against it (it proxies `/api` to
+the backend):
+
+```bash
+docker run -d --name ept-frontend --network ept-net -p 3000:8080 \
+  -e EPT_API_UPSTREAM=http://ept-api:8000 \
+  ghcr.io/edito-infra/edito-publishing-toolkit-frontend:latest
+```
+
+UI at <http://localhost:3000>; sign in with your EDITO account. Pin a
+version tag instead of `latest` to match the backend. More (compose,
+logs, state): [Docker usage](docker-usage.md).
+
+## Local source code
+
+Prerequisite: [`uv`](https://docs.astral.sh/uv/) — installs the Python
+required by `pyproject.toml` itself.
+
+```bash
+git clone https://github.com/EDITO-Infra/edito-publishing-toolkit.git
+cd edito-publishing-toolkit
 uv sync
-```
-
-## Verify
-
-Run the test suite:
-
-```bash
-uv run pytest
-```
-
-Start the API:
-
-```bash
+uv run pytest # verify
 uv run uvicorn ept.api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-The API is available at `http://localhost:8000`, with interactive documentation at `http://localhost:8000/docs`. See the [usage guide](usage.md) for next steps.
+API on `:8000`, docs at `/docs`. Next: [usage](usage.md). The Makefile
+wraps these (`make install`, `make test`, `make api-start`);
+`api-stop`/`api-restart` are Unix-only.
 
-## Notes
+Optionally add the UI with the prebuilt frontend image:
 
-- The `Makefile` provides convenience targets (`make api-start`, `make test`, `make docs-serve`, ...) for Unix-users.
-- `make api-stop` and `make api-restart` additionally use `pkill`/`lsof` and are Unix-only.
-- For containers instead of a local install, see [Docker usage](docker-usage.md) — prebuilt API and frontend images are on GHCR, no clone needed.
+```bash
+docker run -d --name ept-frontend -p 3000:8080 \
+  -e EPT_API_UPSTREAM=http://host.docker.internal:8000 \
+  --add-host=host.docker.internal:host-gateway \
+  ghcr.io/edito-infra/edito-publishing-toolkit-frontend:latest
+```
+
+UI at <http://localhost:3000> — no local Node install needed.

@@ -1,0 +1,26 @@
+[feature]
+key = "stac.collection_tree"
+release = "1.1.0"
+title = "STAC Collection Tree Builder"
+description = "Create a STAC Collection tree from items: pass item JSONs and/or item links (http(s) URLs, s3:// URIs, EPT filesystem paths), or a source prefix (local directory or s3:// prefix) whose *.json files are the items. EPT derives the collection metadata (extent as the union of item bboxes/datetimes, license via SPDX matching, keywords, a unique flat id), wires every root/parent/collection/item link, and schema-validates each object. Omit the export target to preview the collection JSON; set target (an S3 prefix in your personal or a project bucket) or local_output to export a complete, self-contained tree: collection.json plus one file per item."
+depends_on = []
+
+[package]
+requires = ["fastapi", "httpx", "pystac", "pydantic-settings", "fsspec", "s3fs"]
+
+[entrypoints]
+python = ["ept.features.stac_collection_tree.service:create_collection_tree"]
+
+[api]
+router = "ept.features.stac_collection_tree.routes:router"
+
+[[api.routes]]
+method = "POST"
+path = "/v1/stac/collections/tree"
+summary = "Create a collection tree from items"
+request_model = "ept.features.stac_collection_tree.models:CreateCollectionTreeRequest"
+response_model = "ept.features.stac_collection_tree.models:CreateCollectionTreeResponse"
+
+[tests]
+unit = "tests/features/stac_collection_tree/test_collection_tree.py"
+integration = "tests/features/stac_collection_tree/test_collection_tree_api.py"

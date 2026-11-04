@@ -7,7 +7,7 @@ EPT opens the NetCDF (local file, `s3://` URI, or HTTP(S)/OPeNDAP URL), reads **
 ## Endpoint
 
 ```text
-POST /v1/metadata/netcdf/to-stac-item
+POST /v1/conversions/netcdf/stac-item
 ```
 
 Authentication: `Authorization: Bearer <access_token>`.
@@ -27,7 +27,7 @@ Remote `.nc` file into your personal bucket (standalone item, with a suggested c
 
 ```bash
 curl --fail-with-body \
-  -X POST "${EPT_API_URL}/v1/metadata/netcdf/to-stac-item" \
+  -X POST "${EPT_API_URL}/v1/conversions/netcdf/stac-item" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -44,7 +44,7 @@ Project bucket, file name chosen by the caller (any `target` ending in `.json` o
 
 ```bash
 curl --fail-with-body \
-  -X POST "${EPT_API_URL}/v1/metadata/netcdf/to-stac-item" \
+  -X POST "${EPT_API_URL}/v1/conversions/netcdf/stac-item" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{

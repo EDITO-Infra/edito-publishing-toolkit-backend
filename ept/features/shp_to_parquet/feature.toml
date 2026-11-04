@@ -16,7 +16,7 @@ router = "ept.features.shp_to_parquet.routes:router"
 
 [[api.routes]]
 method = "POST"
-path = "/v1/transform/shp-to-parquet"
+path = "/v1/conversions/shp/parquet"
 summary = "Convert Shapefile to GeoParquet"
 request_model = "ept.features.shp_to_parquet.models:ShpToParquetRequest"
 response_model = "ept.features.shp_to_parquet.models:ShpToParquetResponse"

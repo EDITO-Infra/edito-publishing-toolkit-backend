@@ -23,6 +23,7 @@ errors surface as the client's Problem Details exceptions.
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any
 
 from ept.features.stac_find.models import (
@@ -46,7 +47,13 @@ __all__ = [
     "find_properties",
 ]
 
+logger = logging.getLogger(__name__)
+
 _PROJECTS_ROOT = "/catalogs/projects"
+
+# honey: hard cap on per-level catalog fetches; raise if wide levels starve the
+# shared httpx pool or the upstream starts rejecting bursts
+_CATALOG_FETCH_CONCURRENCY = 8
 
 # honey: hard cap on /collections pagination; raise if the API grows past this
 _MAX_PAGES = 50
@@ -198,21 +205,39 @@ async def find_catalog(
 
     Starts at ``/catalogs/projects`` and follows every ``rel="child"`` link,
     fetching each child catalog so nested children are included too. Each
-    breadth-first level is fetched concurrently (one round trip per level);
+    breadth-first level is fetched concurrently (bounded fan-out per level);
     traversal is deduplicated on child href and capped at
-    :data:`_MAX_CATALOG_DEPTH` levels. ``q`` filters the collected child
-    links on title/href.
+    :data:`_MAX_CATALOG_DEPTH` levels. An unreachable subtree is skipped with
+    a warning so one dead catalog cannot fail the whole walk; only a failing
+    projects root propagates. ``q`` filters the collected child links on
+    title/href.
     """
     catalogs: list[dict[str, Any]] = []
     seen: set[str] = set()
     frontier = [_PROJECTS_ROOT]
+    semaphore = asyncio.Semaphore(_CATALOG_FETCH_CONCURRENCY)
+
+    async def fetch(path: str) -> Any:
+        async with semaphore:
+            return await api.get_json(path, access_token=access_token)
+
     for _ in range(_MAX_CATALOG_DEPTH):
-        payloads = await asyncio.gather(
-            *(api.get_json(path, access_token=access_token) for path in frontier)
+        results = await asyncio.gather(
+            *(fetch(path) for path in frontier),
+            return_exceptions=True,
         )
         following: list[str] = []
-        for payload in payloads:
-            for link in payload.get("links", []):
+        for path, result in zip(frontier, results):
+            if isinstance(result, BaseException):
+                if path == _PROJECTS_ROOT:
+                    raise result
+                logger.warning(
+                    "STAC catalog walk skipped an unreachable subtree path=%s error=%r",
+                    path,
+                    result,
+                )
+                continue
+            for link in result.get("links", []):
                 if not (
                     isinstance(link, dict)
                     and link.get("rel") == "child"

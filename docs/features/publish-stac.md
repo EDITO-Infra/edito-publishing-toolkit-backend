@@ -2,10 +2,17 @@
 
 Queue a publication job that publishes a STAC Catalog into the EDITO STAC API under a project catalog. The job runs asynchronously; check the status or the detailed logs using [Publication jobs](publication-jobs.md).
 
+> Publishing **replaces the entire contents of the catalog it is published
+> into** — if you target `projects/<project>/<catalog1>`, everything
+> currently in `catalog1` is swapped for the new STAC. The project catalog
+> itself and any sibling catalogs are untouched. Still, the target is
+> shared: agree with your project on when to publish, and into which
+> catalog. Questions? Email EDITO support.
+
 ## Endpoint
 
 ```text
-POST /v1/edito/stac/publish
+POST /v1/edito/stac/jobs/publication
 ```
 
 Authentication: `Authorization: Bearer <access_token>` **and** `X-EDITO-Refresh-Token: <refresh_token>`.
@@ -13,12 +20,12 @@ Authentication: `Authorization: Bearer <access_token>` **and** `X-EDITO-Refresh-
 ## Usage
 
 ```bash
-curl -X POST "${EPT_API_URL}/v1/edito/stac/publish" \
+curl -X POST "${EPT_API_URL}/v1/edito/stac/jobs/publication" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "X-EDITO-Refresh-Token: ${REFRESH_TOKEN}" \
   -d '{
-    "remote_stac_url": "https://minio.dive.edito.eu/oidc-myusername/mystac/catalog.json",
+    "remote_stac_url": "https://minio.dive.edito.eu/project-{my-project-id}/project-stac/catalog.json",
     "catalog_id": "projects/{my-project-id}"
   }'
 ```
@@ -31,7 +38,7 @@ import os
 import httpx
 
 response = httpx.post(
-    f"{os.environ['EPT_API_URL']}/v1/edito/stac/publish",
+    f"{os.environ['EPT_API_URL']}/v1/edito/stac/jobs/publication",
     headers={
         "Authorization": f"Bearer {os.environ['ACCESS_TOKEN']}",
         "X-EDITO-Refresh-Token": os.environ["REFRESH_TOKEN"],
@@ -69,4 +76,4 @@ Use the returned `job_id` with [publication-jobs](./publication-jobs.md).
 ## Good to know
 
 - A refresh token is required because an access token may expire before the queued job is processed.
-- To replace a project catalog completely, remove it first with `POST /v1/edito/stac/remove`, then publish the replacement.
+- Publishing replaces all STAC inside the target catalog. `POST /v1/edito/stac/jobs/removal` goes further: it deletes the published catalog for every project member — see [Remove STAC](remove-stac.md).

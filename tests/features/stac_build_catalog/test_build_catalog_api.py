@@ -11,5 +11,5 @@ from tests.conftest import integration
 @integration
 def test_build_catalog_route_is_mounted_and_authenticated():
     with TestClient(app) as client:
-        response = client.post("/v1/stac/build/catalog", json={"id": "x"})
+        response = client.post("/v1/stac/objects/catalog", json={"id": "x"})
         assert response.status_code in (401, 403)

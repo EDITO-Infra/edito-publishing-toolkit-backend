@@ -16,7 +16,7 @@ router = "ept.features.publish_stac.routes:router"
 
 [[api.routes]]
 method = "POST"
-path = "/v1/edito/stac/publish"
+path = "/v1/edito/stac/jobs/publication"
 summary = "Queue STAC publication"
 request_model = "ept.features.publish_stac.models:PublishStacRequest"
 response_model = "ept.features.publish_stac.models:PublishStacResponse"

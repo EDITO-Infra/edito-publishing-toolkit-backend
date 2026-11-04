@@ -176,6 +176,7 @@ def test_build_item_core_validates_and_carries_collection():
             collection="projects/x/temperature",
             properties={
                 "Conventions": "CF-1.10",
+                "datetime": None,
                 "start_datetime": "2025-01-01T00:00:00+00:00",
                 "end_datetime": "2025-01-02T00:00:00+00:00",
             },
@@ -198,6 +199,7 @@ def test_build_item_core_validates_and_carries_collection():
     stac_item.validate_item(payload)
 
     assert payload["stac_version"] == "1.1.0"
+    assert payload["properties"]["datetime"] is None
     assert payload["collection"] == "projects/x/temperature"
     assert payload["bbox"] == [2.0, 50.0, 4.0, 52.0]
     assert payload["properties"]["start_datetime"].startswith("2025-01-01T00:00:00")
@@ -238,10 +240,11 @@ def test_build_item_rejects_invalid_geometry():
             bbox=bbox,
             collection="c",
             properties={
+                "datetime": None,
                 "start_datetime": "2025-01-01T00:00:00+00:00",
                 "end_datetime": "2025-01-02T00:00:00+00:00",
             },
-            assets={"data": stac_item.StacAssetInput(href="s3://bucket/data.nc")},
+            assets={"data": stac_item.StacAssetInput(href="s3://bucket/data.nc")}
         )
     )
 
@@ -292,6 +295,20 @@ def test_item_properties_promote_cf_attrs_and_variables():
     assert properties["title"] == "Sample ocean reanalysis"
     assert properties["variables"]["thetao"]["units"] == "degree_Celsius"
     assert properties["custom"] == "value"
+
+
+@unit
+def test_item_properties_map_institution_to_providers_and_spdx_license():
+    dataset = _sample_dataset()
+    dataset.attrs["license"] = "CC-BY-4.0"
+
+    properties = item_properties(summarize_dataset(dataset, source="memory.nc"), {})
+
+    assert properties["providers"] == [{"name": "VLIZ"}]
+    assert properties["license"] == "CC-BY-4.0"
+    # Extras override the derived provider.
+    overridden = item_properties(summarize_dataset(dataset, source="memory.nc"), {"providers": [{"name": "EMODnet"}]})
+    assert overridden["providers"] == [{"name": "EMODnet"}]
 
 
 @unit

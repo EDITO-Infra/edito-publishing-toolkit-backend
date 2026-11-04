@@ -1,4 +1,4 @@
-# Conversions executable by the ARCO STAC Item feature (POST /v1/arco/stac-item).
+# Conversions executable by the ARCO STAC Item feature (POST /v1/conversions/stac-item/arco).
 #
 # Same mechanism as the job runner's operations.toml: features are declared
 # here by import string — the feature code never imports a conversion
@@ -14,6 +14,9 @@
 #                  placeholder uses the source asset key. Canonical keys
 #                  ("zarr", "parquet") get a numeric suffix on collision.
 #   media_type     media type set on the added asset
+#   output_format  optional format literal ("zarr" | "parquet") matched
+#                  against the request's `output_format` filter; conversions
+#                  without one (upload) are never filtered
 #   result_field   optional response attribute copied into the conversion
 #                  result (e.g. "layers" for gdb-to-parquet)
 #
@@ -43,6 +46,7 @@ service = "ept.features.nc_to_zarr.service:nc_to_zarr"
 request_model = "ept.features.nc_to_zarr.models:NetcdfToZarrRequest"
 asset_key = "zarr"
 media_type = "application/vnd+zarr"
+output_format = "zarr"
 
 [conversions.nc-to-zarr.detect]
 media_type = ["netcdf"]
@@ -53,15 +57,14 @@ href_markers = ["dods", "griddap", "opendap", "thredds"]
 href = "source_uri"
 bucket = "bucket"
 target = "target"
-
-[conversions.nc-to-zarr.values]
-output_name = "{source}.zarr"
+# No output_name: nc_to_zarr derives the store name from the source URI's
 
 [conversions.gdb-to-parquet]
 service = "ept.features.gdb_to_parquet.service:gdb_to_parquet"
 request_model = "ept.features.gdb_to_parquet.models:GdbToParquetRequest"
 asset_key = "parquet"
 media_type = "application/vnd.apache.parquet"
+output_format = "parquet"
 result_field = "layers"
 
 [conversions.gdb-to-parquet.detect]
@@ -80,6 +83,7 @@ service = "ept.features.shp_to_parquet.service:shp_to_parquet"
 request_model = "ept.features.shp_to_parquet.models:ShpToParquetRequest"
 asset_key = "parquet"
 media_type = "application/vnd.apache.parquet"
+output_format = "parquet"
 result_field = "layers"
 
 [conversions.shp-to-parquet.detect]

@@ -8,7 +8,7 @@ from .models import NetcdfToZarrRequest, NetcdfToZarrResponse
 from .service import nc_to_zarr
 
 
-router = APIRouter(prefix="/v1/transform", tags=["Transform Data", "netcdf", "zarr", "convert"])
+router = APIRouter(prefix="/v1/conversions", tags=["Transform Data", "netcdf", "zarr", "convert"])
 
 _EXAMPLES = {
     "remoteToPersonalBucket": {
@@ -64,7 +64,7 @@ _EXAMPLES = {
 
 
 @router.post(
-    "/nc-to-zarr",
+    "/netcdf/zarr",
     response_model=NetcdfToZarrResponse,
     summary="Transform NetCDF to Zarr",
     operation_id="transformNetcdfToZarrV1",

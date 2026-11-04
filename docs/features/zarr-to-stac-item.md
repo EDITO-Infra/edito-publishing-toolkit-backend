@@ -7,7 +7,7 @@ EPT opens the Zarr store (local directory, `s3://` prefix, or HTTP(S) URL), read
 ## Endpoint
 
 ```text
-POST /v1/metadata/zarr/to-stac-item
+POST /v1/conversions/zarr/stac-item
 ```
 
 Authentication: `Authorization: Bearer <access_token>`.
@@ -22,7 +22,7 @@ Zarr store in your personal bucket, item written to `stac/items` (the bucket def
 
 ```bash
 curl --fail-with-body \
-  -X POST "${EPT_API_URL}/v1/metadata/zarr/to-stac-item" \
+  -X POST "${EPT_API_URL}/v1/conversions/zarr/stac-item" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{

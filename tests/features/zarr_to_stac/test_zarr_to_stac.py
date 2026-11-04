@@ -96,7 +96,9 @@ def test_service_suggests_but_never_attaches_collection(tmp_path, zarr_store):
     assert response.dataset.bbox == [3.0, 51.0, 4.0, 52.0]
 
     # local_output is a directory: the file name is <item_id>.json.
-    on_disk = json.loads((tmp_path / "observations.json").read_text(encoding="utf-8"))
+    on_disk = json.loads(
+        (tmp_path / f"{response.stac_item['id']}.json").read_text(encoding="utf-8")
+    )
     assert on_disk == response.stac_item
 
 

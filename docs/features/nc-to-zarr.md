@@ -3,7 +3,7 @@
 Convert a NetCDF dataset into a Zarr store in your EDITO S3 storage, or — as an
 override — on the EPT service filesystem.
 
-`POST /v1/transform/nc-to-zarr` (Bearer auth required).
+`POST /v1/conversions/netcdf/zarr` (Bearer auth required).
 
 ## Standard usage: remote NetCDF to your S3 storage
 
@@ -14,7 +14,7 @@ your bearer token):
 
 ```bash
 curl --fail-with-body \
-  -X POST "${EPT_API_URL}/v1/transform/nc-to-zarr" \
+  -X POST "${EPT_API_URL}/v1/conversions/netcdf/zarr" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{

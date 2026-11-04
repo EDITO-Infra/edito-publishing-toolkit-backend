@@ -1,11 +1,43 @@
-# Monitor a Publication Job
+# Monitor Publication Jobs
 
-Use the job ID returned by a [publish](publish-stac.md) or [remove](remove-stac.md) request to inspect the job's status, result summary, and logs through EPT.
+Use the job ID returned by a [publish](publish-stac.md) or [remove](remove-stac.md) request to inspect the job's status, result summary, and logs through EPT, or list all of your jobs at once.
 
-## Endpoint
+## List your jobs
 
 ```text
-GET /v1/edito/publish/jobs/{job_id}
+GET /v1/edito/stac/jobs
+```
+
+Authentication: `Authorization: Bearer <access_token>`. The publishing service scopes job reads to the username carried by the access token, so this always lists your own jobs. Returns up to `limit` jobs, newest first (default `100`, range `1..1000`). No refresh token is required.
+
+```bash
+curl "${EPT_API_URL}/v1/edito/stac/jobs?limit=100" \
+  --header "Authorization: Bearer ${ACCESS_TOKEN}"
+```
+
+```json
+{
+  "jobs": [
+    {
+      "id": "8d7d5a93-ff52-4a8e-9eb6-0d76d874b670",
+      "type": "stac_publish",
+      "status": "succeeded",
+      "username": "alice",
+      "created_at": "2026-07-01T10:00:00Z",
+      "started_at": "2026-07-01T10:00:01Z",
+      "finished_at": "2026-07-01T10:00:03Z",
+      "message": "Job completed successfully."
+    }
+  ]
+}
+```
+
+The list covers publication, removal, validation, and visibility jobs, ordered from newest to oldest. Use each job's `id` with the polling endpoint below.
+
+## Monitor one job
+
+```text
+GET /v1/edito/stac/jobs/{job_id}
 ```
 
 Authentication: `Authorization: Bearer <access_token>`.
@@ -17,7 +49,7 @@ Poll the endpoint while the job has status `queued` or `running`. The terminal s
 ### Job summary
 
 ```bash
-curl "${EPT_API_URL}/v1/edito/publish/jobs/${JOB_ID}" \
+curl "${EPT_API_URL}/v1/edito/stac/jobs/${JOB_ID}" \
   --header "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
@@ -37,7 +69,7 @@ curl "${EPT_API_URL}/v1/edito/publish/jobs/${JOB_ID}" \
 ### Log pages
 
 ```bash
-curl "${EPT_API_URL}/v1/edito/publish/jobs/${JOB_ID}?view=detail&limit=100" \
+curl "${EPT_API_URL}/v1/edito/stac/jobs/${JOB_ID}?view=detail&limit=100" \
   --header "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
@@ -53,7 +85,7 @@ The summary fields remain at the top level. Log views add `logs`, `total`, `limi
   "total": 2400,
   "limit": 100,
   "page_message": "Returned the first page of job events.",
-  "next": "/v1/edito/publish/jobs/8d7d5a93-ff52-4a8e-9eb6-0d76d874b670?view=detail&limit=100&cursor=1071"
+  "next": "/v1/edito/stac/jobs/8d7d5a93-ff52-4a8e-9eb6-0d76d874b670?view=detail&limit=100&cursor=1071"
 }
 ```
 
@@ -87,7 +119,7 @@ set -euo pipefail
 
 output="publication-job-${JOB_ID}.raw.ndjson"
 temporary="${output}.partial"
-next="/v1/edito/publish/jobs/${JOB_ID}?view=raw&limit=100"
+next="/v1/edito/stac/jobs/${JOB_ID}?view=raw&limit=100"
 rm -f "${temporary}"
 trap 'rm -f "${temporary}"' EXIT
 
@@ -109,7 +141,7 @@ For a single page, the essential operation is:
 
 ```bash
 curl --fail --silent --show-error \
-  "${EPT_API_URL}/v1/edito/publish/jobs/${JOB_ID}?view=raw" \
+  "${EPT_API_URL}/v1/edito/stac/jobs/${JOB_ID}?view=raw" \
   --header "Authorization: Bearer ${ACCESS_TOKEN}" \
   | jq -c --arg job_id "${JOB_ID}" '.logs[] | . + {job_id: $job_id}' \
   > "publication-job-${JOB_ID}.raw.ndjson"
@@ -136,11 +168,11 @@ headers = {"Authorization": f"Bearer {access_token}"}
 
 try:
     with httpx.Client(base_url=base_url, headers=headers, timeout=30.0) as client:
-        summary = client.get(f"/v1/edito/publish/jobs/{job_id}")
+        summary = client.get(f"/v1/edito/stac/jobs/{job_id}")
         summary.raise_for_status()
         print(summary.json()["status"])
 
-        next_url = f"/v1/edito/publish/jobs/{job_id}?view=raw&limit=100"
+        next_url = f"/v1/edito/stac/jobs/{job_id}?view=raw&limit=100"
         with temporary_path.open("w", encoding="utf-8") as output:
             while next_url:
                 response = client.get(next_url)

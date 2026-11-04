@@ -6,16 +6,27 @@ See the [feature overview](docs/features/index.md) for the currently implemented
 
 ## Quick start
 
-EPT uses [`uv`](https://docs.astral.sh/uv/) for dependency management; `uv` installs the Python version required by `pyproject.toml` automatically. See the [install guide](docs/install.md) for details.
+Run EPT on EDITO with zero install: launch the [service playground](https://datalab.dive.edito.eu/launcher/service-playground/edito-publishing-toolkit-service) from your personal space — no clone, no setup. Sign in with your EDITO account in the UI, or point your scripts at your service URL.
+
+To run EPT yourself, you need [`uv`](https://docs.astral.sh/uv/) (it installs the Python version required by `pyproject.toml` automatically) and a clone:
 
 ```bash
+git clone https://github.com/EDITO-Infra/edito-publishing-toolkit-backend.git
+cd edito-publishing-toolkit-backend
 uv sync
 uv run uvicorn ept.api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 The API is then available at `http://localhost:8000`, with interactive documentation at `http://localhost:8000/docs`.
 
-For container-based usage, see the [Docker usage guide](docs/docker-usage.md). See the [usage guide](docs/usage.md) for API usage and hosted deployment status.
+Prefer containers? Prebuilt API and frontend images are on GHCR, no clone needed — see the [Docker usage guide](docs/docker-usage.md). Full prerequisites and options in the [install guide](docs/install.md). See the [usage guide](docs/usage.md) for API usage and hosted deployment status.
+
+## Tutorials
+
+Step-by-step, against real EMODnet data: from ISO19139 records and NetCDF files to a validated STAC catalog on EDITO — python, UI, or bash.
+
+- [Session setup](docs/tutorials/session-setup.md) — get an EPT API running and log in
+- [Walkthroughs](docs/tutorials/index.md) — seven focused walkthroughs, plus a full end-to-end guide for [python](docs/tutorials/full-walkthrough-python.md) and the [UI](docs/tutorials/full-walkthrough-ui.md)
 
 ## Credentials
 
@@ -26,6 +37,7 @@ If you are unsure which access rights you have, contact [EDITO Support](mailto:s
 ## Documentation
 
 - [Install](docs/install.md) — prerequisites and installing EPT
+- [Tutorials](docs/tutorials/index.md) — session setup, walkthroughs, and end-to-end guides
 - [Usage](docs/usage.md) — running and using the API, plus hosted deployment status
 - [Docker usage](docs/docker-usage.md) — building and running EPT with Docker
 - [API](docs/api.md) — endpoints, versioning, asynchronous jobs, and error conventions
@@ -44,6 +56,7 @@ Do you have a feature you would like to see added to EPT?
 
 - v1.0.0
 - v1.1.0-beta
+- v1.2.0
 
 ## License
 

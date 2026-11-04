@@ -310,7 +310,7 @@ def test_shp_to_parquet_api_route_converts(tmp_path):
     app.dependency_overrides[require_edito_bearer_auth] = authenticated_principal
     with TestClient(app) as client:
         response = client.post(
-            "/v1/transform/shp-to-parquet",
+            "/v1/conversions/shp/parquet",
             json={"source_uri": str(shp), "local_output": str(tmp_path / "out")},
         )
     assert response.status_code == 200

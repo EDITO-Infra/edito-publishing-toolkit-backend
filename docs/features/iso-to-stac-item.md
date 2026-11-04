@@ -5,7 +5,7 @@ Convert an ISO19139 metadata record into a STAC Item and write the Item JSON int
 ## Endpoint
 
 ```text
-POST /v1/metadata/iso-to-stac-item
+POST /v1/conversions/iso/stac-item
 ```
 
 Authentication: `Authorization: Bearer <access_token>`.
@@ -16,7 +16,7 @@ ISO record from a CSW/HTTP endpoint, into your personal bucket (bucket omitted):
 
 ```bash
 curl --fail-with-body \
-  -X POST "${EPT_API_URL}/v1/metadata/iso-to-stac-item" \
+  -X POST "${EPT_API_URL}/v1/conversions/iso/stac-item" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -35,7 +35,7 @@ Output to another S3 bucket you can access (e.g. a project bucket `project-<proj
 
 ```bash
 curl --fail-with-body \
-  -X POST "${EPT_API_URL}/v1/metadata/iso-to-stac-item" \
+  -X POST "${EPT_API_URL}/v1/conversions/iso/stac-item" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -53,7 +53,7 @@ Override to a local output directory on the EPT service filesystem instead of S3
 
 ```bash
 curl --fail-with-body \
-  -X POST "${EPT_API_URL}/v1/metadata/iso-to-stac-item" \
+  -X POST "${EPT_API_URL}/v1/conversions/iso/stac-item" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -81,7 +81,7 @@ The record must contain a geographic bounding box and usable temporal informatio
 | Field | Meaning |
 | --- | --- |
 | `source_uri` | The ISO19139 XML record — type is auto-detected: `http://`/`https://` URL, `s3://bucket/key` URI, or a path on the EPT service filesystem (the server, not the API caller's computer). |
-| `target` | Destination folder or prefix inside the bucket, such as `my-metadata`. Do not include `s3://bucket` — EPT appends the file name `<item_id>.json` automatically. Required for the standard S3 output; pass `null` only when `local_output` is used instead. |
+| `target` | Destination folder or prefix inside the bucket, such as `my-metadata`. Do not include `s3://bucket` — EPT appends the file name `<item_id>.json` automatically; a `target` ending in `.json` overrides the file name instead of getting the suffix appended. Required for the standard S3 output; pass `null` only when `local_output` is used instead. |
 | `bucket` | Optional. Defaults to your personal EDITO bucket `oidc-<username>`, derived from your bearer token. Ignored when `local_output` is set. |
 | `local_output` | Optional override: directory on the EPT service filesystem to write the Item JSON into instead of S3. When set, `target` must be `null`; `bucket` is ignored. |
 | `item_id` | Optional override for the STAC Item id. When omitted, the ISO `fileIdentifier` is used, namespaced with your username — `<username>-<fileIdentifier>`. Also names the output file. |

@@ -15,7 +15,7 @@ from ept.infrastructure.utils.urlguard import UnsafeUrlError
 from .models import IsoToStacItemRequest, IsoToStacItemResponse
 from .service import iso_to_stac_item
 
-router = APIRouter(prefix="/v1/metadata", tags=["Metadata Conversion", "iso19139", "convert"])
+router = APIRouter(prefix="/v1/conversions", tags=["Metadata Conversion", "iso19139", "convert"])
 
 _REQUEST_EXAMPLES = {
     "personalBucket": {
@@ -68,7 +68,7 @@ _REQUEST_EXAMPLES = {
 
 
 @router.post(
-    "/iso-to-stac-item",
+    "/iso/stac-item",
     response_model=IsoToStacItemResponse,
     summary="Convert an ISO19139 record into a STAC Item",
     operation_id="isoToStacItemV1",

@@ -16,7 +16,7 @@ router = "ept.features.stac_get.routes:router"
 
 [[api.routes]]
 method = "GET"
-path = "/v1/stac/get"
+path = "/v1/stac/objects"
 summary = "Fetch one STAC object by URL"
 response_model = "ept.features.stac_get.models:GetStacResponse"
 

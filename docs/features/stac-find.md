@@ -15,27 +15,27 @@ are not conformant to it. Item finding does use the official
 
 | Endpoint | Scans | Free-text filter |
 |----------|-------|------------------|
-| `GET /v1/stac/find/items` | STAC Item Search (`GET /search`) with `bbox`, `datetime`, `collections`, `ids`, `limit` | `q` narrows on item id/title/description |
-| `GET /v1/stac/find/items/scientific` | Item Search filtered/fallback-scanned for STAC Scientific metadata (`sci:doi`, `sci:citation`) | `doi` and/or `citation` (at least one required), `collections`, `limit` (default 100) |
-| `GET /v1/stac/find/collections` | `GET /collections`, following `next` pages | `q` over id/title/description/keywords |
-| `GET /v1/stac/find/catalogs` | The catalog tree from the projects root (`/catalogs/projects`), following `rel="child"` links recursively (breadth-first with concurrent level fetches, href-deduplicated, depth-capped) | `q` over link title/href |
-| `GET /v1/stac/find/assets` | Item find; returns a FeatureCollection of items with a matching asset key/href/title, each item keeping only its matched assets | `q` (required) |
-| `GET /v1/stac/find/properties` | Item find; keeps items whose properties match every `match` pair, e.g. `match=platform=Sentinel-1,processing-level=L2A` | `match` (required, case-insensitive values) |
+| `GET /v1/stac/items` | STAC Item Search (`GET /search`) with `bbox`, `datetime`, `collections`, `ids`, `limit` | `q` narrows on item id/title/description |
+| `GET /v1/stac/items/scientific` | Item Search filtered/fallback-scanned for STAC Scientific metadata (`sci:doi`, `sci:citation`) | `doi` and/or `citation` (at least one required), `collections`, `limit` (default 100) |
+| `GET /v1/stac/collections` | `GET /collections`, following `next` pages | `q` over id/title/description/keywords |
+| `GET /v1/stac/catalogs` | The catalog tree from the projects root (`/catalogs/projects`), following `rel="child"` links recursively (breadth-first with concurrent level fetches, href-deduplicated, depth-capped) | `q` over link title/href |
+| `GET /v1/stac/items/assets` | Item find; returns a FeatureCollection of items with a matching asset key/href/title, each item keeping only its matched assets | `q` (required) |
+| `GET /v1/stac/items/properties` | Item find; keeps items whose properties match every `match` pair, e.g. `match=platform=Sentinel-1,processing-level=L2A` | `match` (required, case-insensitive values) |
 
 ## Examples
 
 ```bash
 curl -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  "${EPT_API_URL}/v1/stac/find/items?bbox=2.5,51,4,53&datetime=2024-01-01T00:00:00Z/2024-12-31T23:59:59Z&limit=10"
+  "${EPT_API_URL}/v1/stac/items?bbox=2.5,51,4,53&datetime=2024-01-01T00:00:00Z/2024-12-31T23:59:59Z&limit=10"
 
 curl -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  "${EPT_API_URL}/v1/stac/find/collections?q=bathymetry"
+  "${EPT_API_URL}/v1/stac/collections?q=bathymetry"
 
 curl -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  "${EPT_API_URL}/v1/stac/find/assets?q=thumbnail&limit=50"
+  "${EPT_API_URL}/v1/stac/items/assets?q=thumbnail&limit=50"
 
 curl -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  "${EPT_API_URL}/v1/stac/find/properties?match=platform=Sentinel-1&collections=coll-a"
+  "${EPT_API_URL}/v1/stac/items/properties?match=platform=Sentinel-1&collections=coll-a"
 ```
 
 ## Notes

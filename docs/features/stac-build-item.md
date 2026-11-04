@@ -1,11 +1,12 @@
 # Build a STAC Item
 
-Build a STAC Item from individual fields, from a complete JSON object, or from an existing item fetched by URL — provided fields override the base. Preview the JSON, or export it as `item.json` to S3 or a local folder, ready for [assemble](assemble-stac.md) to stitch into a tree.
+Build a STAC Item from individual fields, from a complete JSON object, or from an existing item fetched by URL — provided fields override the base. Preview the JSON, or export it as `item.json` to S3 or a local folder, ready for [create catalog tree](create-catalog-tree.md) to stitch into a tree.
 
 ## Endpoint
 
 ```text
-POST /v1/stac/build/item
+POST /v1/stac/objects/item   # build (create from fields, or overlay a base)
+PUT /v1/stac/objects/item    # edit (replace an existing item; base required)
 ```
 
 Authentication: `Authorization: Bearer <access_token>`.
@@ -13,7 +14,7 @@ Authentication: `Authorization: Bearer <access_token>`.
 ## Usage
 
 ```bash
-curl -X POST "${EPT_API_URL}/v1/stac/build/item" \
+curl -X POST "${EPT_API_URL}/v1/stac/objects/item" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -d '{
@@ -124,6 +125,27 @@ Unknown fields are rejected (`extra="forbid"`).
 - `warnings` — structural findings (e.g. no root link, no temporal info, neither geometry nor bbox, `bbox` with other than 4 or 6 coordinates).
 - `exported` / `target_uri` — set when `target` was given; `status` is `completed`, otherwise `preview`.
 
+## Editing with PUT
+
+`PUT /v1/stac/objects/item` is the edit form of the same route: the base item
+comes from `source_url` (fetched, SSRF-guarded) or inline `stac_json`, and the
+provided fields override it with a shallow merge — provided fields win, the
+base's other fields survive, `null` does not delete. Omit `target` to preview
+the replacement; set `target`/`local_output` to write it. A PUT without a base
+(`stac_json`/`source_url`) fails with `400`; an existing target without
+`overwrite=true` fails with `409`.
+
+```bash
+curl -X PUT "${EPT_API_URL}/v1/stac/objects/item" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  -d '{
+    "source_url": "https://minio.dive.edito.eu/<bucket>/<workspace>/items/item-1.json",
+    "title": "Updated title",
+    "target": "<workspace>/items"
+  }'
+```
+
 ## Good to know
 
 - An item needs `datetime` or `start_datetime` + `end_datetime`. Building from fields without any temporal info fails with `400`; an overlaid base item without temporal info is accepted but warned about.
@@ -131,4 +153,4 @@ Unknown fields are rejected (`extra="forbid"`).
 - If `collection` is set but no `rel=collection` link is, a `collection.json` sibling link is synthesized — the STAC 1.1 schema requires it.
 - `title`, `description` and the datetime fields are stored inside `properties`. `datetime` given as an instant is normalized by pystac; interval fields go into properties directly.
 - Non-ISO 8601 timestamps, malformed assets/geometry, or an unusable `target` return `400`. An existing target returns `409` unless `overwrite=true`; a failed base-object fetch returns `502`.
-- Link hrefs are plain and need not exist yet — [assemble](assemble-stac.md) can stitch the tree afterwards. [Validate](validate-stac.md) the tree before [publishing](publish-stac.md).
+- Link hrefs are plain and need not exist yet — [create catalog tree](create-catalog-tree.md) can stitch the tree afterwards. [Validate](validate-stac.md) the tree before [publishing](publish-stac.md).

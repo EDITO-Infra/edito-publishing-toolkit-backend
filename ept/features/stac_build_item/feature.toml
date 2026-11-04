@@ -2,7 +2,7 @@
 key = "stac.build_item"
 release = "1.1.0"
 title = "STAC Item Builder"
-description = "Build a STAC Item from individual fields, a complete JSON object, or an existing object fetched by URL (provided fields override the base). Preview the JSON or export it to a local folder or S3; links are the standard STAC links array with plain hrefs so assemble-stac can stitch trees later."
+description = "Build a STAC Item from individual fields, a complete JSON object, or an existing object fetched by URL (provided fields override the base). Preview the JSON or export it to a local folder or S3; links are the standard STAC links array with plain hrefs so the create-catalog-tree feature (POST /v1/stac/catalogs/tree) can stitch trees later."
 depends_on = []
 
 [package]
@@ -16,8 +16,15 @@ router = "ept.features.stac_build_item.routes:router"
 
 [[api.routes]]
 method = "POST"
-path = "/v1/stac/build/item"
+path = "/v1/stac/objects/item"
 summary = "Build a STAC Item"
+request_model = "ept.features.stac_build_item.models:BuildItemRequest"
+response_model = "ept.features.stac_build_item.models:BuildItemResponse"
+
+[[api.routes]]
+method = "PUT"
+path = "/v1/stac/objects/item"
+summary = "Replace a STAC Item"
 request_model = "ept.features.stac_build_item.models:BuildItemRequest"
 response_model = "ept.features.stac_build_item.models:BuildItemResponse"
 

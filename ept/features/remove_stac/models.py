@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class RemoveStacRequest(BaseModel):
-    """Body accepted by ``POST /v1/edito/stac/remove``."""
+    """Body accepted by ``POST /v1/edito/stac/jobs/removal``."""
 
     model_config = ConfigDict(extra="forbid")
 

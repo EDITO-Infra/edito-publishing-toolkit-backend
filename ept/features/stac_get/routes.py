@@ -36,7 +36,7 @@ def _is_edito_stac_url(url: HttpUrl) -> bool:
 
 
 @router.get(
-    "/get",
+    "/objects",
     response_model=GetStacResponse,
     summary="Fetch one STAC object by URL",
     operation_id="getStacV1",

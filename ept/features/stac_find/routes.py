@@ -16,7 +16,7 @@ from .models import (
     FindPropertiesResponse,
 )
 
-router = APIRouter(prefix="/v1/stac/find", tags=["STAC Tools", "find"])
+router = APIRouter(prefix="/v1/stac", tags=["STAC Tools", "find"])
 
 
 def _parse_bbox(bbox: str | None) -> list[float] | None:
@@ -205,7 +205,7 @@ async def find_catalogs_route(
 
 
 @router.get(
-    "/assets",
+    "/items/assets",
     response_model=FindItemsResponse,
     summary="Find items by asset",
     operation_id="findStacAssetsV1",
@@ -238,7 +238,7 @@ async def find_assets_route(
 
 
 @router.get(
-    "/properties",
+    "/items/properties",
     response_model=FindPropertiesResponse,
     summary="Find items by properties",
     operation_id="findStacPropertiesV1",

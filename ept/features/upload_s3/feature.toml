@@ -17,7 +17,7 @@ router = "ept.features.upload_s3.routes:router"
 
 [[api.routes]]
 method = "POST"
-path = "/v1/storage/s3/upload"
+path = "/v1/storage/s3/uploads"
 summary = "Upload to S3"
 request_model = "ept.features.upload_s3.models:UploadS3Request"
 response_model = "ept.features.upload_s3.models:UploadS3Response"

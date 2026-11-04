@@ -8,7 +8,7 @@ To S3, using your personal bucket (`oidc-<username>`, derived from your bearer t
 
 ```bash
 curl --fail-with-body \
-  -X POST "${EPT_API_URL}/v1/transform/gdb-to-parquet" \
+  -X POST "${EPT_API_URL}/v1/conversions/gdb/parquet" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{

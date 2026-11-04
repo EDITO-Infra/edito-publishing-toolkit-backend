@@ -16,7 +16,7 @@ router = "ept.features.netcdf_to_stac.routes:router"
 
 [[api.routes]]
 method = "POST"
-path = "/v1/metadata/netcdf/to-stac-item"
+path = "/v1/conversions/netcdf/stac-item"
 summary = "Create a STAC Item from NetCDF metadata"
 request_model = "ept.features.netcdf_to_stac.models:NetcdfToStacItemRequest"
 response_model = "ept.features.netcdf_to_stac.models:NetcdfToStacItemResponse"

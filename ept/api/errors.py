@@ -4,20 +4,21 @@ for the public API.
 
 from __future__ import annotations
 
-from http import HTTPStatus
 import logging
+from http import HTTPStatus
 from typing import Any
 
-from fastapi import HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from ept.infrastructure.services.errors import UpstreamServiceRequestError, UpstreamServiceUnavailableError
+from ept.infrastructure.services.errors import (
+    UpstreamServiceRequestError,
+    UpstreamServiceUnavailableError,
+)
 from ept.infrastructure.utils.logging import sanitize_payload, sanitize_query_string
-
 
 logger = logging.getLogger(__name__)
 
@@ -628,6 +629,8 @@ def _problem_slug(reason: str | None, status_code: int) -> str:
             return "authentication-config-invalid"
         case "instance_bound":
             return "deployment-bound"
+        case "s3_session_missing":
+            return "s3-session-missing"
         case _:
             return title_for_status(status_code).lower().replace(" ", "-")
 
@@ -651,5 +654,7 @@ def _problem_title(reason: str | None, status_code: int) -> str:
             return "Authentication configuration invalid"
         case "instance_bound":
             return "Deployment bound to another user"
+        case "s3_session_missing":
+            return "S3 session missing"
         case _:
             return title_for_status(status_code)

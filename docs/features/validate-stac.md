@@ -5,7 +5,7 @@ Check your STAC metadata before publishing. Give the endpoint the URL of your ca
 ## Endpoint
 
 ```text
-POST /v1/stac/validate
+POST /v1/stac/validations
 ```
 
 Authentication: `Authorization: Bearer <access_token>`.
@@ -15,7 +15,7 @@ Authentication: `Authorization: Bearer <access_token>`.
 For catalogs large enough to risk gateway timeouts, run the same validation as a background [EPT job runner](job-runner.md) run and poll for the result instead of holding the request open.
 
 ```bash
-curl -X POST "${EPT_API_URL}/v1/stac/validate" \
+curl -X POST "${EPT_API_URL}/v1/stac/validations" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -d '{"stac_url": "'$STAC_URL'"}' | jq . > catalog-1-validation-results.json
@@ -30,7 +30,7 @@ import os
 import httpx
 
 response = httpx.post(
-    f"{os.environ['EPT_API_URL']}/v1/stac/validate",
+    f"{os.environ['EPT_API_URL']}/v1/stac/validations",
     headers={"Authorization": f"Bearer {os.environ['ACCESS_TOKEN']}"},
     json={
         "stac_url": "https://minio.dive.edito.eu/oidc-myusername/project-id/catalog-1/catalog.json"

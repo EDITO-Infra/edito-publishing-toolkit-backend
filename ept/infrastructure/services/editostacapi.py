@@ -97,7 +97,7 @@ class EditoStacApiClient:
         try:
             response = await self._client.request("GET", url, headers=headers)
         except httpx.RequestError as exc:
-            logger.warning("EDITO STAC API unavailable url=%s error=%s", url, exc)
+            logger.warning("EDITO STAC API unavailable url=%s error=%r", url, exc)
             raise EditoStacApiUnavailableError() from exc
 
         payload = _response_payload(response)

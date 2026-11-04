@@ -3,7 +3,9 @@
 Callers use this endpoint before protected feature routes. The response carries
 the access token used in ``Authorization: Bearer``, the refresh token needed
 only when submitting STAC publication or removal jobs, and — for password
-login — the caller's temporary S3 credentials in ``s3_credentials``.
+login — the caller's temporary S3 credentials in ``s3_credentials`` plus the
+personal ``s3_default_bucket``. The S3 session is also cached per subject so
+bearer-only calls (e.g. GET /v1/storage/s3/buckets) need no extra headers.
 """
 
 import logging
@@ -19,6 +21,7 @@ from ept.infrastructure.services.edito_auth import (
     EditoBearerAuthError,
     exchange_auth_credentials,
     exchange_refresh_token,
+    store_s3_session,
 )
 
 router = APIRouter(prefix="/v1", tags=["Authentication"])
@@ -64,22 +67,33 @@ async def auth_route(request: Annotated[EditoAuthForm, Form()]) -> EditoAuthResp
     """Exchange form-encoded EDITO credentials or a refresh token for API tokens.
 
     A password grant also returns the caller's temporary 24-hour EDITO S3
-    session; a refresh grant rotates only the API tokens because the S3 session
-    has its own independent lifetime and Keycloak client. Failure responses
-    stay generic so upstream Keycloak details are not exposed through the
-    public EPT API.
+    session — cached per subject so later bearer-only requests can use it —
+    plus the personal ``s3_default_bucket``. A refresh grant rotates only the
+    API tokens because the S3 session has its own independent lifetime and
+    Keycloak client. Failure responses stay generic so upstream Keycloak
+    details are not exposed through the public EPT API.
     """
-    grant_type = "refresh_token" if isinstance(request, EditoRefreshAuthForm) else "password"
+    grant_type = (
+        "refresh_token" if isinstance(request, EditoRefreshAuthForm) else "password"
+    )
     logger.info("API auth request started grant_type=%s", grant_type)
     try:
         if isinstance(request, EditoRefreshAuthForm):
             token_response = await exchange_refresh_token(request.refresh_token)
-            response = EditoAuthResponse(**token_response.model_dump(), s3_credentials=None)
+            response = EditoAuthResponse(
+                **token_response.model_dump(), s3_credentials=None
+            )
         else:
-            response = await exchange_auth_credentials(request.username, request.password)
+            response = await exchange_auth_credentials(
+                request.username, request.password
+            )
         subject, username = subject_from_token(response.access_token)
         if check_owner(subject, username) == INSTANCE_BOUND:
-            logger.warning("API auth request rejected reason=%s grant_type=%s", INSTANCE_BOUND, grant_type)
+            logger.warning(
+                "API auth request rejected reason=%s grant_type=%s",
+                INSTANCE_BOUND,
+                grant_type,
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={
@@ -87,13 +101,22 @@ async def auth_route(request: Annotated[EditoAuthForm, Form()]) -> EditoAuthResp
                     "message": "This deployment is bound to another EDITO user.",
                 },
             )
+        if response.s3_credentials:
+            if subject:
+                store_s3_session(subject, response.s3_credentials)
+            response.s3_default_bucket = f"oidc-{username}" if username else None
         return response
     except EditoBearerAuthError as exc:
-        logger.warning("API auth request failed grant_type=%s reason=%s", grant_type, exc.reason)
+        logger.warning(
+            "API auth request failed grant_type=%s reason=%s", grant_type, exc.reason
+        )
         if exc.reason == "auth_unavailable":
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail={"reason": exc.reason, "message": "EDITO authentication service is unavailable."},
+                detail={
+                    "reason": exc.reason,
+                    "message": "EDITO authentication service is unavailable.",
+                },
             ) from exc
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

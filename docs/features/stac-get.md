@@ -5,7 +5,7 @@ Fetch a single STAC object (Item, Collection, or Catalog) by URL and get it back
 ## Endpoint
 
 ```text
-GET /v1/stac/get
+GET /v1/stac/objects
 ```
 
 Authentication: `Authorization: Bearer <access_token>`. The bearer token is attached only when the URL targets the EDITO STAC API — public sources (e.g. S3-hosted catalogs) reject bearer tokens, so it is never sent anywhere else.
@@ -14,7 +14,7 @@ Authentication: `Authorization: Bearer <access_token>`. The bearer token is atta
 
 ```bash
 curl -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  "${EPT_API_URL}/v1/stac/get?url=https%3A%2F%2Fminio.dive.edito.eu%2Foidc-myusername%2Fmy-project%2Fitem-1.json" | jq .
+  "${EPT_API_URL}/v1/stac/objects?url=https%3A%2F%2Fminio.dive.edito.eu%2Foidc-myusername%2Fmy-project%2Fitem-1.json" | jq .
 ```
 
 ### Python (`httpx`)
@@ -25,7 +25,7 @@ import os
 import httpx
 
 response = httpx.get(
-    f"{os.environ['EPT_API_URL']}/v1/stac/get",
+    f"{os.environ['EPT_API_URL']}/v1/stac/objects",
     headers={"Authorization": f"Bearer {os.environ['ACCESS_TOKEN']}"},
     params={"url": "https://minio.dive.edito.eu/oidc-myusername/my-project/item-1.json"},
     timeout=120.0,

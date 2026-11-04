@@ -4,6 +4,35 @@ All notable changes to the EDITO Publishing Toolkit are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning follows [SemVer](https://semver.org/).
 
+## [1.2.0] - 2026-11-03
+
+### API updates
+
+Endpoint paths consolidated ahead of the stable 1.x API:
+
+- Conversions under `/v1/conversions`
+- STAC builders at `/v1/stac/objects/{item,collection,catalog}`
+- STAC search flattened under `/v1/stac`; validate is `POST /v1/stac/validations`
+- Publish/remove/job endpoints under `/v1/edito/stac/jobs`
+- S3 upload at `POST /v1/storage/s3/uploads`; bucket listing is `GET /v1/storage/s3/buckets`
+
+### Added
+
+- New features:
+  - `create-collection-tree` — `POST /v1/stac/collections/tree`: collection tree from items with derived extent, SPDX license collection, and unioned keywords; preview without `target` or export a self-contained tree to S3/local
+  - `create-catalog-tree` — `POST /v1/stac/catalogs/tree`: merge collections, catalogs, and exported prefixes into one publishable catalog tree with derived identity/metadata
+- `GET /docs/openapi.json` — docs-only OpenAPI schema with one curated tag per operation; full schema stays at `/openapi.json`
+- New tag facet "EPT Job Runner" in the OpenAPI docs grouping
+
+### Removed
+
+- `assemble-stac`, `stac-suggest-collection`, `stac-suggest-catalog` — replaced by the tree builders
+
+### Changed
+
+- Docs: guide for running EPT from prebuilt GHCR images; training tutorial replaces the hands-on walkthroughs
+- `uv.lock` dependency refresh
+
 ## [1.1.0-beta] - 2026-10-19
 
 ### Added
@@ -35,9 +64,6 @@ versioning follows [SemVer](https://semver.org/).
 - OpenAPI endpoints grouped into facet tags; versioned handbook served via mkdocs
 - Auth logs downgraded from info to debug
 - Tutorial rework: standalone scripts with inline API calls, workspace-unique item IDs
-
-### Changed
-
 - Item builders namespace derived ids with the caller's username (same scheme as the suggesters): when no `item_id` is given, `netcdf-to-stac` and `zarr-to-stac` prefer the dataset's own `id`, `identifier`, or `title` attribute (falling back to the source file/store name), and `iso-to-stac-item` prefixes the ISO `fileIdentifier` (title as last resort) — proposed ids become `<username>-<identifier>`
 
 ### Fixed

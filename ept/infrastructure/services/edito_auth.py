@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from functools import lru_cache
@@ -130,6 +131,15 @@ class EditoAuthResponse(EditoTokenResponse):
             "Temporary 24-hour EDITO S3 credentials returned by password login. "
             "This is null for refresh-token grants; retain the existing S3 session "
             "until its expiration."
+        ),
+    )
+    s3_default_bucket: str | None = Field(
+        default=None,
+        description=(
+            "Caller's personal EDITO bucket `oidc-<username>` from the password "
+            "login — the bucket used when `bucket` is omitted from storage "
+            "requests. Null for refresh-token grants or when the token carries "
+            "no username claim."
         ),
     )
 
@@ -260,6 +270,35 @@ async def _exchange_s3_session(identity_token: str) -> S3Credentials:
 
         values = _parse_s3_credentials(response.text)
         return S3Credentials(endpoint_url=endpoint_url, **values)
+
+
+_S3_SESSION_TTL_SECONDS = 86_400  # honey: static TTL; revisit if the STS duration becomes configurable
+_s3_sessions: dict[str, tuple[S3Credentials, float]] = {}
+
+
+def store_s3_session(subject: str, credentials: S3Credentials) -> None:
+    """Register one caller's S3 session so bearer-only requests need no headers.
+
+    In-memory only: entries die with the process, never enter the environment,
+    and expire with the STS session they hold.
+    """
+    now = time.monotonic()
+    for key, (_, expires_at) in list(_s3_sessions.items()):
+        if now > expires_at:
+            _s3_sessions.pop(key, None)
+    _s3_sessions[subject] = (credentials, now + _S3_SESSION_TTL_SECONDS)
+
+
+def get_s3_session(subject: str) -> S3Credentials | None:
+    """Return the caller's registered S3 session, or None when absent/expired."""
+    entry = _s3_sessions.get(subject)
+    if entry is None:
+        return None
+    credentials, expires_at = entry
+    if time.monotonic() > expires_at:
+        _s3_sessions.pop(subject, None)
+        return None
+    return credentials
 
 
 # --- flow 3: bearer-token verification --------------------------------------
