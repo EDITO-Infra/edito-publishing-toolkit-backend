@@ -65,6 +65,10 @@ From **your personal space**:
    catalog/Collection/Item URL and browse the tree;
    [Parquet explorer](https://datalab.dive.edito.eu/launcher/service-playground/parquet-explorer) —
    inspect the GeoParquet the conversions produce.
+- **Jupyter notebook** (launch now, use from step 3):
+   [Jupyter notebook service](https://datalab.dive.edito.eu/launcher/ide/jupyter-python)
+   — create a new Python notebook. Running EPT locally? A local
+   notebook/script instead.
 
 **Today you work in a shared project bucket** (`project-ept-training1`).
 Pick a unique handle — your EDITO username is easiest; avoid
@@ -93,10 +97,8 @@ every EPT capability is a tool form, *Run Tool* submits it. There is a
 **Logs** tab so you can follow
 what calls are being made and what it's doing.
 
-**Also in a jupyter notebook.** Launch a [**Jupyter notebook
-service**](https://datalab.dive.edito.eu/launcher/ide/jupyter-python)
-and create a new Python notebook. (Running EPT locally? Then you need a
-local notebook/script instead.) First cell, the session values:
+**Also in the jupyter notebook** you launched in Setup. First cell,
+the session values:
 
 ```python
 import os
