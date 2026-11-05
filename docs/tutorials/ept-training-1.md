@@ -65,6 +65,10 @@ From **your personal space**:
    catalog/Collection/Item URL and browse the tree;
    [Parquet explorer](https://datalab.dive.edito.eu/launcher/service-playground/parquet-explorer) —
    inspect the GeoParquet the conversions produce.
+- **Jupyter notebook** (launch now, use from step 3):
+   [Jupyter notebook service](https://datalab.dive.edito.eu/launcher/ide/jupyter-python)
+   — create a new Python notebook. Running EPT locally? A local
+   notebook/script instead.
 
 **Today you work in a shared project bucket** (`project-ept-training1`).
 Pick a unique handle — your EDITO username is easiest; avoid
@@ -77,9 +81,7 @@ data in your output folder.
 
 ## How we'll work
 
-Try each feature yourself — first as a form in the frontend, then as a
-code cell in a notebook. Each step's page shows both side by side and
-is the reference for every field:
+The walkthroughs we'll be going through:
 
 | Step | Page | Done when |
 | --- | --- | --- |
@@ -90,15 +92,13 @@ is the reference for every field:
 | 5 — Collections | [walkthrough 5](walkthroughs/walkthrough-5-collections.md) | two validated Collection folders |
 | 6 — Catalog | [walkthrough 6](walkthroughs/walkthrough-6-catalog.md) | schema-valid `<handle>-output/stac-final/` — paste it into the STAC browser |
 
-**In the frontend (steps 1–2).** Open your service URL and sign in —
-every EPT capability is a tool form, *Run Tool* submits it. Do steps 1
-and 2 by hand; each feature's page has a **Logs** tab so you can follow
+**In the frontend.** Open your service URL and sign in —
+every EPT capability is a tool form, *Run Tool* submits it. There is a
+**Logs** tab so you can follow
 what calls are being made and what it's doing.
 
-**In the notebook (steps 3–6).** Launch a [**Jupyter notebook
-service**](https://datalab.dive.edito.eu/launcher/ide/jupyter-python)
-and create a new Python notebook. (Running EPT locally? Then you need a
-local notebook/script instead.) First cell, the session values:
+**Also in the jupyter notebook** you launched in Setup. First cell,
+the session values:
 
 ```python
 import os
@@ -123,10 +123,6 @@ Have your own NetCDF or ISO19139 record? Use its URL — public
 in place of the EMODnet one in the step-2 or step-3 cell, with your own
 `item_id`. Add it to a Collection's `item_links` in the step-5 cell and
 re-run steps 5–6 — it lands in your final catalog like any other Item.
-
-🎬 The walkthrough pages carry screencasts of their steps — a stand-in
-when a live step can't run, skippable otherwise. The pages remain the
-reference for every field.
 
 **One pass instead?** The same six steps, one runnable script:
 [Full walkthrough — python](full-walkthrough-python.md).
